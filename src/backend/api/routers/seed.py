@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 import sqlite3
+import os
 from src.backend.api.deps import DB_PATH
 
 router = APIRouter()
@@ -20,6 +21,8 @@ SAMPLE_DRUGS = [
 ]
 
 def init_db():
+    # Ensure the data directory exists
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     db = sqlite3.connect(DB_PATH)
     db.execute("""
         CREATE TABLE IF NOT EXISTS drugs (
