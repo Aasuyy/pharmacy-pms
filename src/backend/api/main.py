@@ -9,6 +9,26 @@ from src.backend.api.routers import seed
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Pharmacy API starting...")
+    # Auto-seed database if empty
+    from src.backend.api.routers.seed import init_db, SAMPLE_DRUGS
+    import sqlite3
+    from src.backend.api.deps import DB_PATH
+    init_db()
+    db = sqlite3.connect(DB_PATH)
+    count = db.execute("SELECT COUNT(*) FROM drugs").fetchone()[0]
+    if count == 0:
+        for drug in SAMPLE_DRUGS:
+            db.execute(
+                """INSERT INTO drugs (name, generic_name, drug_code, category, manufacturer, stock,
+                    reorder_point, cost_price, selling_price, expiry_date, barcode, controlled)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (drug["name"], drug["generic_name"], drug["drug_code"], drug["category"], drug["manufacturer"],
+                 drug["stock"], drug["reorder_point"], drug["cost_price"], drug["selling_price"],
+                 drug["expiry_date"], drug["barcode"], drug["controlled"])
+            )
+        db.commit()
+        print(f"Auto-seeded {len(SAMPLE_DRUGS)} drugs")
+    db.close()
     yield
     print("Pharmacy API shutting down...")
 
