@@ -1,44 +1,77 @@
-# Pharmacy Management System — Python Dependencies
-# Install: pip install -r requirements.txt
-
-# ─── Core ───
-python-dotenv>=1.0.0
-
-# ─── Terminal (Step 3) ───
-rich>=13.0.0
-textual>=0.41.0
-
-# ─── Backend API (Step 4) ───
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
-python-multipart>=0.0.6
-pydantic>=2.5.0
-websockets>=12.0
-
-# ─── Database ───
-# SQLite is built-in, but for production:
-# psycopg2-binary>=2.9.9
-# redis>=5.0.0
-# sqlalchemy>=2.0.0
-
-# ─── Blockchain ───
-# web3>=6.11.0
-# eth-account>=0.9.0
-
-# ─── gRPC (Step 6) ───
-grpcio>=1.59.0
-grpcio-tools>=1.59.0
-protobuf>=4.24.0
-
-# ─── Testing ───
-pytest>=7.4.0
-pytest-cov>=4.1.0
-pytest-asyncio>=0.21.0
-httpx>=0.25.0
-
-# ─── Development ───
-black>=23.0.0
-flake8>=6.1.0
-mypy>=1.7.0
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.14.2
+ast_serialize==0.8.0
+bcrypt==5.0.0
+black==26.5.1
+certifi==2026.7.22
+cffi==2.1.1
+charset-normalizer==3.4.9
+click==8.4.2
+coverage==7.15.4
+cryptography==50.0.0
+ecdsa==0.19.2
+fastapi==0.141.1
+flake8==7.3.0
+grpcio==1.83.0
+grpcio-tools==1.83.0
+h11==0.16.0
+httpcore==1.0.9
+httptools==0.8.0
+httpx==0.28.1
+idna==3.18
+iniconfig==2.3.0
+librt==0.15.0
+linkify-it-py==2.1.0
+markdown-it-py==4.2.0
+mccabe==0.7.0
+mdit-py-plugins==0.6.1
+mdurl==0.1.2
+mypy==2.3.0
+mypy_extensions==1.1.0
+packaging==26.3
+passlib==1.7.4
+pathspec==1.1.1
+platformdirs==4.11.1
+pluggy==1.6.0
+protobuf==7.35.1
+pyasn1==0.6.4
+pycodestyle==2.14.0
+pycparser==3.0
+pydantic==2.13.4
+pydantic_core==2.46.4
+pyflakes==3.4.0
+Pygments==2.20.0
+PyJWT==2.13.0
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
+python-dotenv==1.2.2
+python-jose==3.5.0
+python-multipart==0.0.32
+pytokens==0.4.1
+PyYAML==6.0.3
+requests==2.34.2
+rich==15.0.0
+rsa==4.9.1
+setuptools==84.0.0
+six==1.17.0
+starlette==1.6.0
+textual==8.2.8
+typing-inspection==0.4.2
+typing_extensions==4.16.0
+uc-micro-py==2.0.0
+urllib3==2.7.0
+uvicorn==0.52.1
+uvloop==0.22.1
+watchfiles==1.2.0
+websockets==17.0.1
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+pydantic
+pydantic-settings
