@@ -2,16 +2,11 @@ from fastapi import APIRouter, Query, HTTPException
 import sqlite3
 import os
 
-import os
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "data", "pharmacy.db"))
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+from src.backend.api.deps import DB_PATH, get_db
 
 router = APIRouter()
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+# Using get_db from deps
 
 @router.get("/drugs")
 async def list_drugs(search: str = Query(None), category: str = Query(None)):
