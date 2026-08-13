@@ -141,9 +141,14 @@ export async function fetchCategories() {
   const res = await fetch(API_URL + "/shop/categories");
   if (!res.ok) {
     const drugs = await fetchMedicines();
-    const categories = drugs.map((d: any) => d.category).filter((c: any) => typeof c === "string" && c.length > 0) as string[];
-    const uniqueCats = Array.from(new Set(categories));
-    return uniqueCats.map((name: string) => ({ id: name, name }));
+    const cats: string[] = [];
+    for (const d of drugs) {
+      const cat = d.category;
+      if (typeof cat === "string" && cat.length > 0 && !cats.includes(cat)) {
+        cats.push(cat);
+      }
+    }
+    return cats.map((name: string) => ({ id: name, name }));
   }
   return res.json();
 }
