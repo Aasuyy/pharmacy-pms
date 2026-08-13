@@ -77,3 +77,29 @@ async def checkout(data: dict, authorization: str = Header(None)):
     db.commit()
     db.close()
     return {"message": "Order placed", "order_id": order_id, "order_number": order_number}
+@router.get("/{order_id}")
+async def get_order(order_id: int, authorization: str = Header(None)):
+    customer_id = get_customer_id_from_token(authorization)
+    db = get_db()
+    order = db.execute("SELECT * FROM orders WHERE id = ? AND customer_id = ?", (order_id, customer_id)).fetchone()
+    if not order:
+        db.close()
+        raise HTTPException(status_code=404, detail="Order not found")
+    items = db.execute("""
+        SELECT oi.*, d.name FROM order_items oi JOIN drugs d ON oi.drug_id = d.id WHERE oi.order_id = ?
+    """, (order_id,)).fetchall()
+    db.close()
+    return {**dict(order), "items": [dict(i) for i in items]}
+
+@router.post("/{order_id}/cancel")
+async def cancel_order(order_id: int, authorization: str = Header(None)):
+    customer_id = get_customer_id_from_token(authorization)
+    db = get_db()
+    order = db.execute("SELECT * FROM orders WHERE id = ? AND customer_id = ?", (order_id, customer_id)).fetchone()
+    if not order:
+        db.close()
+        raise HTTPException(status_code=404, detail="Order not found")
+    db.execute("UPDATE orders SET status = 'cancelled' WHERE id = ?", (order_id,))
+    db.commit()
+    db.close()
+    return {"message": "Order cancelled"}

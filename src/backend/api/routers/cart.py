@@ -110,3 +110,33 @@ async def remove_cart_item(item_id: int, authorization: str = Header(None)):
     db.commit()
     db.close()
     return {"message": "Removed"}
+@router.delete("/clear")
+async def clear_cart(authorization: str = Header(None)):
+    customer_id = get_customer_id_from_token(authorization)
+    cart = get_or_create_cart(customer_id)
+    db = get_db()
+    db.execute("DELETE FROM cart_items WHERE cart_id = ?", (cart["id"],))
+    db.commit()
+    db.close()
+    return {"message": "Cart cleared"}
+
+@router.put("/update-drug/{drug_id}")
+async def update_cart_by_drug(drug_id: int, data: dict, authorization: str = Header(None)):
+    customer_id = get_customer_id_from_token(authorization)
+    cart = get_or_create_cart(customer_id)
+    db = get_db()
+    db.execute("UPDATE cart_items SET quantity = ? WHERE drug_id = ? AND cart_id = ?",
+               (data.get("quantity"), drug_id, cart["id"]))
+    db.commit()
+    db.close()
+    return {"message": "Updated"}
+
+@router.delete("/remove-drug/{drug_id}")
+async def remove_cart_by_drug(drug_id: int, authorization: str = Header(None)):
+    customer_id = get_customer_id_from_token(authorization)
+    cart = get_or_create_cart(customer_id)
+    db = get_db()
+    db.execute("DELETE FROM cart_items WHERE drug_id = ? AND cart_id = ?", (drug_id, cart["id"]))
+    db.commit()
+    db.close()
+    return {"message": "Removed"}

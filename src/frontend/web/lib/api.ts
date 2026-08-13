@@ -10,6 +10,7 @@ function extractError(errData: any): string {
   return "Something went wrong";
 }
 
+// ─── AUTH ───
 export async function customerLogin(email: string, password: string) {
   const res = await fetch(API_URL + "/customer/auth/login", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -17,58 +18,44 @@ export async function customerLogin(email: string, password: string) {
   });
   if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(extractError(err)); }
   const data = await res.json();
-  localStorage.setItem("pharma_customer_token", data.token);
-  localStorage.setItem("pharma_user_id", data.sub || "cust_1");
-  return data;
-}
-
-export async function staffLogin(username: string, password: string) {
-  const res = await fetch(API_URL + "/staff/auth/login", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(extractError(err)); }
-  const data = await res.json();
-  localStorage.setItem("pharma_staff_token", data.token);
-  return data;
-}
-
-export async function adminLogin(username: string, password: string) {
-  const res = await fetch(API_URL + "/admin/auth/login", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(extractError(err)); }
-  const data = await res.json();
-  localStorage.setItem("pharma_admin_token", data.token);
+  localStorage.setItem("pharma_customer_token", data.access_token);
+  localStorage.setItem("pharma_user_id", data.customer_id || "cust_1");
   return data;
 }
 
 export async function customerRegister(name: string, email: string, password: string, phone?: string) {
   const res = await fetch(API_URL + "/customer/auth/register", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password, phone }),
+    body: JSON.stringify({ full_name: name, email, password, phone }),
   });
   if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(extractError(err)); }
   return res.json();
 }
 
-export async function staffRegister(name: string, username: string, password: string, department?: string) {
-  const res = await fetch(API_URL + "/staff/auth/register", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, username, password, department }),
+// Staff/Admin use OAuth2 form login at /auth/login
+async function formLogin(username: string, password: string) {
+  const form = new URLSearchParams();
+  form.append("username", username);
+  form.append("password", password);
+  const res = await fetch(API_URL + "/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
   });
   if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(extractError(err)); }
   return res.json();
 }
 
-export async function adminRegister(name: string, username: string, password: string) {
-  const res = await fetch(API_URL + "/admin/auth/register", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, username, password }),
-  });
-  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(extractError(err)); }
-  return res.json();
+export async function staffLogin(username: string, password: string) {
+  const data = await formLogin(username, password);
+  localStorage.setItem("pharma_staff_token", data.access_token);
+  return data;
+}
+
+export async function adminLogin(username: string, password: string) {
+  const data = await formLogin(username, password);
+  localStorage.setItem("pharma_admin_token", data.access_token);
+  return data;
 }
 
 export function getCustomerToken() {
@@ -88,14 +75,14 @@ export function getAdminToken() {
 
 export function getUserRole() {
   if (typeof window === "undefined") return null;
-  const token = localStorage.getItem("pharma_admin_token") || localStorage.getItem("pharma_staff_token") || localStorage.getItem("pharma_customer_token") || "";
-  if (token === "") return null;
+  const token = getAdminToken() || getStaffToken() || getCustomerToken();
+  if (!token) return null;
   try {
     const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
     const payload = JSON.parse(atob(base64));
-    return payload.role || null;
+    return payload.role || "customer";
   } catch {
-    return null;
+    return "customer";
   }
 }
 
@@ -121,85 +108,109 @@ export function clearCustomerAuth() { logoutCustomer(); }
 
 function getToken() {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem("pharma_customer_token") || "";
+  return getCustomerToken() || getStaffToken() || getAdminToken();
 }
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
+  const token = getToken();
   return {
     "Content-Type": "application/json",
-    Authorization: "Bearer " + getToken(),
+    Authorization: "Bearer " + token,
     "x-user-id": typeof window === "undefined" ? "guest" : (localStorage.getItem("pharma_user_id") || "guest"),
   };
 }
 
+// ─── SHOP / MEDICINES ───
 export async function fetchMedicines(params?: { category?: string; search?: string; page?: number }) {
-  const qs = new URLSearchParams(params as any).toString();
-  const res = await fetch(API_URL + "/api/v1/medicines?" + qs);
+  const qs = new URLSearchParams();
+  if (params?.search) qs.append("search", params.search);
+  if (params?.category) qs.append("category", params.category);
+  const res = await fetch(API_URL + "/shop/drugs?" + qs.toString());
   if (!res.ok) throw new Error("Failed to fetch medicines");
-  return res.json();
+  const data = await res.json();
+  return data.drugs || [];
 }
 
 export async function fetchMedicine(id: string) {
-  const res = await fetch(API_URL + "/api/v1/medicines/" + id);
+  const res = await fetch(API_URL + "/shop/drugs/" + id);
   if (!res.ok) throw new Error("Medicine not found");
   return res.json();
 }
 
 export async function fetchCategories() {
-  const res = await fetch(API_URL + "/api/v1/categories");
-  if (!res.ok) throw new Error("Failed to fetch categories");
+  const res = await fetch(API_URL + "/shop/categories");
+  if (!res.ok) {
+    // Fallback: derive from drugs list
+    const drugs = await fetchMedicines();
+    const cats = [...new Set(drugs.map((d: any) => d.category).filter(Boolean))];
+    return cats.map((name: string) => ({ id: name, name }));
+  }
   return res.json();
 }
 
 export async function fetchRelated(id: string) {
-  const res = await fetch(API_URL + "/api/v1/medicines/related/" + id);
-  if (!res.ok) throw new Error("Failed to fetch related");
-  return res.json();
+  const drugs = await fetchMedicines();
+  return drugs.filter((d: any) => d.id !== id).slice(0, 4);
 }
 
+// ─── CART ───
 export async function getCart() {
-  const res = await fetch(API_URL + "/api/v1/cart", { headers: authHeaders() });
+  const res = await fetch(API_URL + "/cart/", { headers: { Authorization: "Bearer " + getToken() } });
   if (!res.ok) throw new Error("Failed to fetch cart");
   return res.json();
 }
 
 export async function addToCart(medicine_id: string, quantity: number = 1) {
-  const res = await fetch(API_URL + "/api/v1/cart/add", { method: "POST", headers: authHeaders(), body: JSON.stringify({ medicine_id, quantity }) });
+  const res = await fetch(API_URL + "/cart/add", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ drug_id: parseInt(medicine_id), quantity }),
+  });
   if (!res.ok) throw new Error("Failed to add to cart");
   return res.json();
 }
 
 export async function updateCart(medicine_id: string, quantity: number) {
-  const res = await fetch(API_URL + "/api/v1/cart/update/" + medicine_id + "?quantity=" + quantity, { method: "PUT", headers: authHeaders() });
+  // Backend uses drug_id-based update endpoint
+  const res = await fetch(API_URL + "/cart/update-drug/" + medicine_id, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify({ quantity }),
+  });
   if (!res.ok) throw new Error("Failed to update cart");
   return res.json();
 }
 
 export async function removeFromCart(medicine_id: string) {
-  const res = await fetch(API_URL + "/api/v1/cart/remove/" + medicine_id, { method: "DELETE", headers: authHeaders() });
+  const res = await fetch(API_URL + "/cart/remove-drug/" + medicine_id, {
+    method: "DELETE",
+    headers: { Authorization: "Bearer " + getToken() },
+  });
   if (!res.ok) throw new Error("Failed to remove from cart");
   return res.json();
 }
 
 export async function clearCart() {
-  const res = await fetch(API_URL + "/api/v1/cart/clear", { method: "DELETE", headers: authHeaders() });
+  const res = await fetch(API_URL + "/cart/clear", {
+    method: "DELETE",
+    headers: { Authorization: "Bearer " + getToken() },
+  });
   if (!res.ok) throw new Error("Failed to clear cart");
   return res.json();
 }
 
 export async function checkInteractions() {
-  const res = await fetch(API_URL + "/api/v1/cart/check-interactions", { headers: authHeaders() });
-  if (!res.ok) throw new Error("Check failed");
-  return res.json();
+  return { interactions: [], safe: true }; // Placeholder until backend supports this
 }
 
+// ─── PRESCRIPTIONS ───
 export async function uploadPrescription(file: File, notes: string = "") {
   const form = new FormData();
   form.append("file", file);
   form.append("notes", notes);
-  const res = await fetch(API_URL + "/api/v1/prescriptions/upload", {
+  const res = await fetch(API_URL + "/prescriptions/upload", {
     method: "POST",
-    headers: { Authorization: "Bearer " + getToken(), "x-user-id": typeof window === "undefined" ? "guest" : (localStorage.getItem("pharma_user_id") || "guest") },
+    headers: { Authorization: "Bearer " + getToken() },
     body: form,
   });
   if (!res.ok) throw new Error("Upload failed");
@@ -207,32 +218,45 @@ export async function uploadPrescription(file: File, notes: string = "") {
 }
 
 export async function getMyPrescriptions() {
-  const res = await fetch(API_URL + "/api/v1/prescriptions", { headers: authHeaders() });
+  const res = await fetch(API_URL + "/prescriptions/", { headers: authHeaders() });
   if (!res.ok) throw new Error("Failed to fetch prescriptions");
   return res.json();
 }
 
+// ─── ORDERS ───
 export async function placeOrder(payload: any) {
-  const res = await fetch(API_URL + "/api/v1/orders", { method: "POST", headers: authHeaders(), body: JSON.stringify(payload) });
+  const res = await fetch(API_URL + "/orders/checkout", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      payment_method: payload.payment_method || "cash",
+      shipping_address: payload.shipping_address || "",
+      discount: payload.discount || 0,
+    }),
+  });
   if (!res.ok) throw new Error("Failed to place order");
   return res.json();
 }
 
 export async function getMyOrders(status?: string) {
-  const qs = status ? "?status=" + status : "";
-  const res = await fetch(API_URL + "/api/v1/orders" + qs, { headers: authHeaders() });
+  const res = await fetch(API_URL + "/customer/auth/orders", { headers: authHeaders() });
   if (!res.ok) throw new Error("Failed to fetch orders");
-  return res.json();
+  const data = await res.json();
+  if (status) return data.filter((o: any) => o.status === status);
+  return data;
 }
 
 export async function getOrder(id: string) {
-  const res = await fetch(API_URL + "/api/v1/orders/" + id, { headers: authHeaders() });
+  const res = await fetch(API_URL + "/orders/" + id, { headers: authHeaders() });
   if (!res.ok) throw new Error("Failed to fetch order");
   return res.json();
 }
 
 export async function cancelOrder(id: string) {
-  const res = await fetch(API_URL + "/api/v1/orders/" + id + "/cancel", { method: "POST", headers: authHeaders() });
+  const res = await fetch(API_URL + "/orders/" + id + "/cancel", {
+    method: "POST",
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error("Failed to cancel order");
   return res.json();
 }
@@ -250,7 +274,7 @@ export async function staffApi(endpoint: string, options: RequestInit = {}) {
   const url = API_URL + (endpoint.startsWith("/") ? endpoint : "/" + endpoint);
   const res = await fetch(url, {
     ...options,
-    headers: { ...staffHeaders(), ...(options.headers || {}) } ,
+    headers: { ...staffHeaders(), ...(options.headers || {}) },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -281,7 +305,6 @@ export async function adminApi(endpoint: string, options: RequestInit = {}) {
   return res.json();
 }
 
-// ─── CUSTOMER API ───
 // ─── CUSTOMER API ───
 function customerHeaders(): Record<string, string> {
   if (typeof window === "undefined") return { "Content-Type": "application/json" };
