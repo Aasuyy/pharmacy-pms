@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from src.backend.api.routers import drugs, patients, prescriptions, sales, dashboard, users
 from src.backend.api.deps import ws_manager
 from src.backend.api.routers import customers, shop, cart, orders, vendors
+from src.backend.api.routers import seed
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
