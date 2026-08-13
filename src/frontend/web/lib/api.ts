@@ -140,9 +140,8 @@ export async function fetchMedicine(id: string) {
 export async function fetchCategories() {
   const res = await fetch(API_URL + "/shop/categories");
   if (!res.ok) {
-    // Fallback: derive from drugs list
     const drugs = await fetchMedicines();
-    const cats = [...new Set(drugs.map((d: any) => d.category).filter(Boolean))];
+    const cats: string[] = [...new Set(drugs.map((d: any) => d.category).filter((c: any): c is string => !!c))];
     return cats.map((name: string) => ({ id: name, name }));
   }
   return res.json();
@@ -171,7 +170,6 @@ export async function addToCart(medicine_id: string, quantity: number = 1) {
 }
 
 export async function updateCart(medicine_id: string, quantity: number) {
-  // Backend uses drug_id-based update endpoint
   const res = await fetch(API_URL + "/cart/update-drug/" + medicine_id, {
     method: "PUT",
     headers: authHeaders(),
@@ -200,7 +198,7 @@ export async function clearCart() {
 }
 
 export async function checkInteractions() {
-  return { interactions: [], safe: true }; // Placeholder until backend supports this
+  return { interactions: [], safe: true };
 }
 
 // ─── PRESCRIPTIONS ───
