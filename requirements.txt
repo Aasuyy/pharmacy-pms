@@ -1,0 +1,44 @@
+# Pharmacy Management System — Python Dependencies
+# Install: pip install -r requirements.txt
+
+# ─── Core ───
+python-dotenv>=1.0.0
+
+# ─── Terminal (Step 3) ───
+rich>=13.0.0
+textual>=0.41.0
+
+# ─── Backend API (Step 4) ───
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6
+pydantic>=2.5.0
+websockets>=12.0
+
+# ─── Database ───
+# SQLite is built-in, but for production:
+# psycopg2-binary>=2.9.9
+# redis>=5.0.0
+# sqlalchemy>=2.0.0
+
+# ─── Blockchain ───
+# web3>=6.11.0
+# eth-account>=0.9.0
+
+# ─── gRPC (Step 6) ───
+grpcio>=1.59.0
+grpcio-tools>=1.59.0
+protobuf>=4.24.0
+
+# ─── Testing ───
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+httpx>=0.25.0
+
+# ─── Development ───
+black>=23.0.0
+flake8>=6.1.0
+mypy>=1.7.0

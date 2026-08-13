@@ -1,0 +1,59 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build C++ Engine",
+      "type": "shell",
+      "command": "g++",
+      "args": [
+        "-std=c++17",
+        "-fopenmp",
+        "-O3",
+        "-g",
+        "-o", "${workspaceFolder}/build/pharmacy_engine",
+        "${workspaceFolder}/src/backend/engine/pharmacy_engine.cpp"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "Run Terminal App",
+      "type": "shell",
+      "command": "python",
+      "args": ["${workspaceFolder}/src/terminal/pharmacy_rich.py"],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run FastAPI Server",
+      "type": "shell",
+      "command": "uvicorn",
+      "args": [
+        "src.backend.api.main:app",
+        "--reload",
+        "--port", "8000"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Setup Environment",
+      "type": "shell",
+      "command": "bash",
+      "args": ["${workspaceFolder}/scripts/setup.sh"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Tests",
+      "type": "shell",
+      "command": "pytest",
+      "args": ["tests/", "-v", "--cov=src"],
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
