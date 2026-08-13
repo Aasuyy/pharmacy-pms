@@ -24,8 +24,10 @@ def init_db():
     # Ensure the data directory exists
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     db = sqlite3.connect(DB_PATH)
+    # Drop old table if schema mismatch
+    db.execute("DROP TABLE IF EXISTS drugs")
     db.execute("""
-        CREATE TABLE IF NOT EXISTS drugs (
+        CREATE TABLE drugs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             generic_name TEXT,
