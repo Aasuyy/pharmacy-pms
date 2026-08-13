@@ -43,6 +43,7 @@ app.include_router(shop.router, prefix="/shop", tags=["Shop"])
 app.include_router(cart.router, prefix="/cart", tags=["Cart"])
 app.include_router(orders.router, prefix="/orders", tags=["Orders"])
 app.include_router(vendors.router, prefix="/vendor", tags=["Vendor"])
+app.include_router(seed.router, prefix="/seed", tags=["Seed"])
 
 @app.get("/")
 async def root():
