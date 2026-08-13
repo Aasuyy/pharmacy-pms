@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 
-export default function OAuthCallbackPage() {
+function OAuthCallbackInner() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"processing" | "success" | "error">("processing");
   const [message, setMessage] = useState("Completing sign in...");
@@ -65,5 +65,20 @@ export default function OAuthCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function OAuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
+        <div className="text-center">
+          <Loader2 size={48} className="text-[#84cc16] animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Signing you in...</h2>
+        </div>
+      </div>
+    }>
+      <OAuthCallbackInner />
+    </Suspense>
   );
 }
