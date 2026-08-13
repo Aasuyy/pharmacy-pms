@@ -141,8 +141,9 @@ export async function fetchCategories() {
   const res = await fetch(API_URL + "/shop/categories");
   if (!res.ok) {
     const drugs = await fetchMedicines();
-    const cats: string[] = [...new Set(drugs.map((d: any) => d.category).filter((c: any): c is string => !!c))];
-    return cats.map((name: string) => ({ id: name, name }));
+    const categories = drugs.map((d: any) => d.category).filter((c: any) => typeof c === "string" && c.length > 0) as string[];
+    const uniqueCats = Array.from(new Set(categories));
+    return uniqueCats.map((name: string) => ({ id: name, name }));
   }
   return res.json();
 }
