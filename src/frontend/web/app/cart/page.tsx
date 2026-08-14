@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag, CreditCard } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 
 export default function CartPage() {
@@ -70,14 +70,16 @@ export default function CartPage() {
           ))}
         </div>
 
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="mt-6 bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
           <div className="flex justify-between items-center text-lg font-bold text-slate-800">
             <span>Total</span>
             <span>Rs. {getTotal().toFixed(2)}</span>
           </div>
-          <button className="w-full mt-4 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-            Proceed to Checkout
-          </button>
+          <Link href="/checkout" className="block w-full">
+            <button className="w-full py-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
+              <CreditCard className="w-5 h-5" /> Proceed to Checkout
+            </button>
+          </Link>
         </div>
       </div>
     </div>
