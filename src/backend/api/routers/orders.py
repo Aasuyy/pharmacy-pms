@@ -1,8 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from typing import List, Optional
-import sqlite3
-import os
+import json
 
 from src.backend.api.deps import get_db
 
@@ -20,30 +19,55 @@ class OrderCreate(BaseModel):
     notes: Optional[str] = None
 
 @router.post("/checkout")
-async def create_order(data: OrderCreate):
+async def create_order(data: OrderCreate, authorization: Optional[str] = Header(None)):
     conn, db_type = get_db()
     try:
         cur = conn.cursor()
+        
+        # Calculate total
         total = 0
         for item in data.items:
-            placeholder = "%s" if db_type == "postgres" else "?"
-            cur.execute(f"SELECT selling_price FROM drugs WHERE id = {placeholder}", (item.medicine_id,))
+            ph = "%s" if db_type == "postgres" else "?"
+            cur.execute(f"SELECT selling_price FROM drugs WHERE id = {ph}", (item.medicine_id,))
             row = cur.fetchone()
             if row:
                 price = row["selling_price"] if db_type == "postgres" else row[0]
                 total += price * item.quantity
         
-        import json
-        placeholder = "%s" if db_type == "postgres" else "?"
-        addr = json.dumps(data.shipping_address) if db_type == "postgres" else json.dumps(data.shipping_address)
+        # For now, use customer_id = 1 (guest). Later extract from JWT.
+        customer_id = 1
+        
+        ph = "%s" if db_type == "postgres" else "?"
+        addr = json.dumps(data.shipping_address)
         
         cur.execute(f"""
             INSERT INTO orders (customer_id, total, status, payment_method, shipping_address, prescription_id, notes)
-            VALUES ({','.join([placeholder]*7)})
-        """, (1, total, 'pending', data.payment_method, addr, data.prescription_id, data.notes))
+            VALUES ({','.join([ph]*7)})
+            RETURNING id
+        """ if db_type == "postgres" else f"""
+            INSERT INTO orders (customer_id, total, status, payment_method, shipping_address, prescription_id, notes)
+            VALUES ({','.join([ph]*7)})
+        """, (customer_id, total, 'pending', data.payment_method, addr, data.prescription_id, data.notes))
+        
+        if db_type == "postgres":
+            order_id = cur.fetchone()["id"]
+        else:
+            order_id = cur.lastrowid
+        
+        # Insert order items
+        for item in data.items:
+            ph = "%s" if db_type == "postgres" else "?"
+            cur.execute(f"SELECT selling_price FROM drugs WHERE id = {ph}", (item.medicine_id,))
+            row = cur.fetchone()
+            price = row["selling_price"] if db_type == "postgres" else row[0]
+            
+            cur.execute(f"""
+                INSERT INTO order_items (order_id, drug_id, quantity, price)
+                VALUES ({','.join([ph]*4)})
+            """, (order_id, item.medicine_id, item.quantity, price))
         
         conn.commit()
-        return {"message": "Order created", "order_id": 1, "total": total}
+        return {"message": "Order created", "order_id": order_id, "total": total}
     finally:
         conn.close()
 
@@ -55,5 +79,25 @@ async def list_orders():
         cur.execute("SELECT * FROM orders ORDER BY created_at DESC")
         rows = cur.fetchall()
         return {"orders": [dict(row) for row in rows]}
+    finally:
+        conn.close()
+
+@router.get("/{order_id}")
+async def get_order(order_id: int):
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        cur.execute(f"SELECT * FROM orders WHERE id = {ph}", (order_id,))
+        order = cur.fetchone()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        cur.execute(f"SELECT * FROM order_items WHERE order_id = {ph}", (order_id,))
+        items = cur.fetchall()
+        
+        result = dict(order)
+        result["items"] = [dict(row) for row in items]
+        return result
     finally:
         conn.close()
