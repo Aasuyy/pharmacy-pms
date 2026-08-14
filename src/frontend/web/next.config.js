@@ -1,9 +1,9 @@
-/** @type {import("next").NextConfig} */
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  outputFileTracingRoot: __dirname,
-  images: { unoptimized: true },
-  typescript: {
-    ignoreBuildErrors: true,
+  allowedDevOrigins: ['127.0.0.1', '192.168.1.64'],
+  images: {
+    unoptimized: true,
   },
 };
+
 module.exports = nextConfig;
