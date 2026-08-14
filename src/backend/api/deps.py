@@ -2,6 +2,7 @@ import os
 import sqlite3
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///tmp/pharmacy.db")
+DB_PATH = DATABASE_URL.replace("sqlite://", "") if not DATABASE_URL.startswith("postgres") else "/tmp/pharmacy.db"
 
 def get_db():
     if DATABASE_URL.startswith("postgres"):
