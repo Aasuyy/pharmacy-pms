@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://pharmacy-pms.onrender.com").replace(/\/$/, "");
 
 function extractError(errData: any): string {
   if (errData == null) return "Something went wrong";
