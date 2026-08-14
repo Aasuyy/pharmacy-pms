@@ -45,7 +45,21 @@ export default function ShopPage() {
         fetchCategories(),
         getCart().catch(() => ({ item_count: 0 })),
       ]);
-      setMedicines(medsRes.items || []);
+      setMedicines((medsRes.drugs || medsRes.items || []).map((d: any) => ({
+          id: String(d.id),
+          name: d.name,
+          generic: d.generic_name || d.generic || "",
+          brand: d.manufacturer || d.brand || "",
+          category: d.category || "",
+          price: d.selling_price || d.price || 0,
+          mrp: d.cost_price || d.mrp || d.selling_price || 0,
+          stock: d.stock || 0,
+          unit: d.unit || "tablet",
+          image: d.image || "",
+          requires_prescription: d.controlled || d.requires_prescription || false,
+          description: d.description || "",
+          tags: d.tags || []
+        })));
       setCategories(catsRes || []);
       setCartCount(cartRes.item_count || 0);
     } catch (e) {
