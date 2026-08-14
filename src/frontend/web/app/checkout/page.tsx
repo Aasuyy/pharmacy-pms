@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
 import { placeOrder } from "@/lib/api";
@@ -9,6 +9,7 @@ import Link from "next/link";
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, getTotal, clearCart } = useCartStore();
+  const [mounted, setMounted] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [done, setDone] = useState(false);
   const [orderId, setOrderId] = useState("");
@@ -23,6 +24,10 @@ export default function CheckoutPage() {
     prescriptionId: "",
   });
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const handlePlace = async () => {
     if (!form.fullName || !form.phone || !form.address) {
       alert("Please fill in all required fields");
@@ -34,7 +39,6 @@ export default function CheckoutPage() {
     }
     setPlacing(true);
     try {
-      // Try backend API first
       const res = await placeOrder({
         items: items.map((i) => ({ medicine_id: i.id, quantity: i.quantity })),
         shipping_address: {
@@ -49,7 +53,6 @@ export default function CheckoutPage() {
       });
       setOrderId(res.order_id || "DEMO-" + Math.floor(Math.random() * 100000));
     } catch (e) {
-      // Demo mode: show success even if backend fails
       console.log("Backend order failed, showing demo success:", e);
       setOrderId("DEMO-" + Math.floor(Math.random() * 100000));
     }
@@ -101,7 +104,7 @@ export default function CheckoutPage() {
           ))}
           <div className="flex justify-between items-center pt-2 text-lg font-bold text-slate-900">
             <span>Total</span>
-            <span>Rs. {getTotal().toFixed(2)}</span>
+            <span>{mounted ? `Rs. ${getTotal().toFixed(2)}` : "Rs. --"}</span>
           </div>
         </div>
 
