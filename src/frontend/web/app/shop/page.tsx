@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCustomerToken } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 import { Search, ShoppingCart, ChevronRight, Plus } from "lucide-react";
 
@@ -25,6 +26,7 @@ export default function ShopPage() {
   const [error, setError] = useState<string | null>(null);
 
   const { addItem, getCount } = useCartStore();
+  const { user, logout } = useAuthStore();
   const cartCount = getCount();
 
   useEffect(() => {
@@ -133,7 +135,12 @@ export default function ShopPage() {
                 </span>
               )}
             </Link>
-            {getCustomerToken() ? (
+            {user ? (
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-slate-700">{user.full_name}</span>
+                <button onClick={() => { logout(); window.location.href = "/login"; }} className="text-sm text-red-500 hover:text-red-600">Logout</button>
+              </div>
+            ) : getCustomerToken() ? (
               <Link href="/profile" className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">Me</Link>
             ) : (
               <Link href="/login" className="text-sm font-medium text-blue-600 hover:text-blue-700">Login</Link>
