@@ -149,50 +149,12 @@ export async function fetchRelated(id: string) {
   return drugs.filter((d: any) => d.id !== id).slice(0, 4);
 }
 
-// ─── CART ───
-export async function getCart() {
-  const res = await fetch(API_URL + "/cart/", { headers: { Authorization: "Bearer " + getToken() } });
-  if (!res.ok) throw new Error("Failed to fetch cart");
-  return res.json();
-}
-
-export async function addToCart(medicine_id: string, quantity: number = 1) {
-  const res = await fetch(API_URL + "/cart/add", {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify({ drug_id: parseInt(medicine_id), quantity }),
-  });
-  if (!res.ok) throw new Error("Failed to add to cart");
-  return res.json();
-}
-
-export async function updateCart(medicine_id: string, quantity: number) {
-  const res = await fetch(API_URL + "/cart/update-drug/" + medicine_id, {
-    method: "PUT",
-    headers: authHeaders(),
-    body: JSON.stringify({ quantity }),
-  });
-  if (!res.ok) throw new Error("Failed to update cart");
-  return res.json();
-}
-
-export async function removeFromCart(medicine_id: string) {
-  const res = await fetch(API_URL + "/cart/remove-drug/" + medicine_id, {
-    method: "DELETE",
-    headers: { Authorization: "Bearer " + getToken() },
-  });
-  if (!res.ok) throw new Error("Failed to remove from cart");
-  return res.json();
-}
-
-export async function clearCart() {
-  const res = await fetch(API_URL + "/cart/clear", {
-    method: "DELETE",
-    headers: { Authorization: "Bearer " + getToken() },
-  });
-  if (!res.ok) throw new Error("Failed to clear cart");
-  return res.json();
-}
+// ─── CART (DEPRECATED — use Zustand cartStore instead) ───
+// export async function getCart() { ... }
+// export async function addToCart(medicine_id: string, quantity: number = 1) { ... }
+// export async function updateCart(medicine_id: string, quantity: number) { ... }
+// export async function removeFromCart(medicine_id: string) { ... }
+// export async function clearCart() { ... }
 
 export async function checkInteractions() {
   return { interactions: [], safe: true };
