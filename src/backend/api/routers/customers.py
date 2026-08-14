@@ -70,3 +70,27 @@ async def login_customer(data: CustomerLogin):
 @router.get("/me")
 async def get_me():
     return {"message": "Customer profile endpoint"}
+
+@router.get("/me")
+async def get_current_customer():
+    # Demo: return a mock customer if no auth (or implement JWT later)
+    return {
+        "id": 1,
+        "email": "guest@pharmapro.com",
+        "full_name": "Guest User",
+        "phone": "",
+        "role": "customer",
+        "address": "",
+        "city": "Kathmandu"
+    }
+
+@router.get("/orders")
+async def get_customer_orders():
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM orders ORDER BY created_at DESC LIMIT 20")
+        rows = cur.fetchall()
+        return {"orders": [dict(row) for row in rows]}
+    finally:
+        conn.close()
