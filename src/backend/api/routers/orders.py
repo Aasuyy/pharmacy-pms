@@ -66,7 +66,14 @@ async def create_order(data: OrderCreate, authorization: Optional[str] = Header(
                 VALUES ({','.join([ph]*4)})
             """, (order_id, item.medicine_id, item.quantity, price))
         
-        conn.commit()
+                    # Deduct stock for each item
+            for item in data.items:
+                cur.execute(f"UPDATE drugs SET stock = stock - {ph} WHERE id = {ph} AND stock >= {ph}",
+                           (item.quantity, item.medicine_id, item.quantity))
+                if cur.rowcount == 0:
+                    conn.rollback()
+                    raise HTTPException(status_code=400, detail=f"Insufficient stock for medicine ID {item.medicine_id}")
+            conn.commit()
         return {"message": "Order created", "order_id": order_id, "total": total}
     finally:
         conn.close()
