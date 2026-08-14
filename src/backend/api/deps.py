@@ -1,136 +1,183 @@
-from fastapi import Depends, HTTPException, WebSocket, status
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from pydantic import BaseModel
-from typing import Optional, List
-import sqlite3
 import os
-import hashlib
-import secrets
+import sqlite3
 
-SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key-change-in-production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data", "pharmacy.db")
-# Use /tmp on Render (read-only filesystem)
-if os.getenv("APP_ENV") == "production" or os.getenv("RENDER"):
-    DB_PATH = "/tmp/pharmacy.db"
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
-customer_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/customer/auth/login", auto_error=False)
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-    role: Optional[str] = None
-
-class UserOut(BaseModel):
-    id: int
-    username: str
-    full_name: Optional[str] = None
-    role: str
-
-class CustomerOut(BaseModel):
-    id: int
-    email: str
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
-    city: Optional[str] = None
-    address: Optional[str] = None
-    is_email_verified: bool = False
-    is_2fa_enabled: bool = False
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///tmp/pharmacy.db")
 
 def get_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if DATABASE_URL.startswith("postgres"):
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        return conn, "postgres"
+    else:
+        path = DATABASE_URL.replace("sqlite://", "")
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
+        return conn, "sqlite"
 
-def get_user(username: str):
-    db = get_db()
-    row = db.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-    db.close()
-    return dict(row) if row else None
+def init_tables(conn, db_type: str):
+    cur = conn.cursor()
 
-def get_customer_by_email(email: str):
-    db = get_db()
-    row = db.execute("SELECT * FROM customers WHERE email = ?", (email,)).fetchone()
-    db.close()
-    return dict(row) if row else None
+    if db_type == "postgres":
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                full_name VARCHAR(255),
+                phone VARCHAR(50),
+                role VARCHAR(50) DEFAULT 'customer',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS customers (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                address TEXT,
+                city VARCHAR(100) DEFAULT 'Kathmandu'
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS drugs (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                generic_name VARCHAR(255),
+                drug_code VARCHAR(100) UNIQUE,
+                category VARCHAR(100),
+                manufacturer VARCHAR(255),
+                stock INTEGER DEFAULT 0,
+                reorder_point INTEGER DEFAULT 10,
+                cost_price NUMERIC(10,2) DEFAULT 0,
+                selling_price NUMERIC(10,2) DEFAULT 0,
+                expiry_date DATE,
+                barcode VARCHAR(100),
+                controlled BOOLEAN DEFAULT FALSE,
+                image TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS orders (
+                id SERIAL PRIMARY KEY,
+                customer_id INTEGER REFERENCES customers(id),
+                total NUMERIC(10,2) DEFAULT 0,
+                status VARCHAR(50) DEFAULT 'pending',
+                payment_method VARCHAR(50),
+                shipping_address JSONB,
+                prescription_id VARCHAR(100),
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS order_items (
+                id SERIAL PRIMARY KEY,
+                order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+                drug_id INTEGER REFERENCES drugs(id),
+                quantity INTEGER DEFAULT 1,
+                price NUMERIC(10,2) DEFAULT 0
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                full_name TEXT,
+                phone TEXT,
+                role TEXT DEFAULT 'customer',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS customers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id),
+                address TEXT,
+                city TEXT DEFAULT 'Kathmandu'
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS drugs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                generic_name TEXT,
+                drug_code TEXT UNIQUE,
+                category TEXT,
+                manufacturer TEXT,
+                stock INTEGER DEFAULT 0,
+                reorder_point INTEGER DEFAULT 10,
+                cost_price REAL DEFAULT 0,
+                selling_price REAL DEFAULT 0,
+                expiry_date TEXT,
+                barcode TEXT,
+                controlled INTEGER DEFAULT 0,
+                image TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER REFERENCES customers(id),
+                total REAL DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                payment_method TEXT,
+                shipping_address TEXT,
+                prescription_id TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS order_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+                drug_id INTEGER REFERENCES drugs(id),
+                quantity INTEGER DEFAULT 1,
+                price REAL DEFAULT 0
+            )
+        """)
 
-def get_customer_by_id(customer_id: int):
-    db = get_db()
-    row = db.execute("SELECT * FROM customers WHERE id = ?", (customer_id,)).fetchone()
-    db.close()
-    return dict(row) if row else None
+    conn.commit()
+    cur.close()
 
-def hash_password(plain: str) -> str:
-    return hashlib.sha256(plain.encode()).hexdigest()
+def seed_drugs(conn, db_type: str):
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) as count FROM drugs")
+    row = cur.fetchone()
+    count = row["count"] if db_type == "postgres" else row[0]
 
-def verify_password(plain, hashed):
-    if not hashed:
-        return False
-    if len(hashed) == 64:
-        return hashlib.sha256(plain.encode()).hexdigest() == hashed
-    if hashed.startswith("$2"):
-        try:
-            return pwd_context.verify(plain, hashed)
-        except:
-            return False
-    return plain == hashed
+    if count > 0:
+        cur.close()
+        return
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if not username:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    user = get_user(username)
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return UserOut(**user)
+    drugs = [
+        ("Paracetamol 500mg", "Acetaminophen", "PCM500", "Pain Relief", "GSK", 100, 20, 2.5, 5.0, "2027-06-01", "8901234567890", False),
+        ("Ibuprofen 400mg", "Ibuprofen", "IBU400", "Pain Relief", "Cipla", 80, 15, 4.0, 8.0, "2027-08-15", "8901234567891", False),
+        ("Amoxicillin 250mg", "Amoxicillin", "AMX250", "Antibiotics", "Sun Pharma", 50, 10, 15.0, 30.0, "2026-12-20", "8901234567892", True),
+        ("Cetirizine 10mg", "Cetirizine", "CET10", "Allergy", "Dr Reddy", 120, 25, 3.0, 6.0, "2027-05-10", "8901234567893", False),
+        ("Metformin 500mg", "Metformin", "MET500", "Diabetes", "USV", 60, 12, 8.0, 16.0, "2027-03-15", "8901234567894", False),
+        ("Omeprazole 20mg", "Omeprazole", "OME20", "Gastric", "Lupin", 90, 18, 5.0, 10.0, "2027-07-22", "8901234567895", False),
+        ("Aspirin 75mg", "Aspirin", "ASP75", "Cardiac", "Bayer", 200, 40, 1.5, 3.0, "2027-09-01", "8901234567896", False),
+        ("ORS Sachet", "Oral Rehydration Salts", "ORS001", "Electrolytes", "WHO", 300, 50, 5.0, 10.0, "2028-01-01", "8901234567897", False),
+        ("Vitamin D3 60K", "Cholecalciferol", "VITD60", "Vitamins", "Mankind", 180, 30, 5.0, 10.0, "2027-07-20", "8901234567898", False),
+        ("Cough Syrup 100ml", "Dextromethorphan", "COU100", "Cold & Flu", "P&G", 70, 14, 25.0, 50.0, "2027-04-10", "8901234567899", False),
+        ("Insulin Glargine", "Insulin Glargine", "INS001", "Diabetes", "Sanofi", 40, 8, 250.0, 500.0, "2026-11-30", "8901234567900", True),
+        ("Azithromycin 500mg", "Azithromycin", "AZI500", "Antibiotics", "Pfizer", 55, 11, 20.0, 40.0, "2027-02-28", "8901234567901", False),
+    ]
 
-async def get_current_customer(token: str = Depends(customer_oauth2_scheme)):
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        customer_id = payload.get("sub")
-        if not customer_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    customer = get_customer_by_id(int(customer_id))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Customer not found")
-    return CustomerOut(**customer)
+    placeholder = "%s" if db_type == "postgres" else "?"
+    sql = f"""
+        INSERT INTO drugs (name, generic_name, drug_code, category, manufacturer, stock, reorder_point, cost_price, selling_price, expiry_date, barcode, controlled)
+        VALUES ({','.join([placeholder]*12)})
+    """
 
-def require_role(*allowed_roles: str):
-    def checker(current_user: UserOut = Depends(get_current_user)):
-        if current_user.role not in allowed_roles:
-            raise HTTPException(status_code=403, detail=f"Requires: {allowed_roles}")
-        return current_user
-    return checker
+    for drug in drugs:
+        cur.execute(sql, drug)
 
-class WebSocketManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-    async def broadcast(self, message: dict):
-        for conn in list(self.active_connections):
-            try:
-                await conn.send_json(message)
-            except:
-                self.disconnect(conn)
-
-ws_manager = WebSocketManager()
+    conn.commit()
+    cur.close()
+    print(f"Seeded {len(drugs)} drugs into {'PostgreSQL' if db_type == 'postgres' else 'SQLite'}")
