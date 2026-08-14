@@ -1,4 +1,4 @@
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://pharmacy-pms.onrender.com").replace(/\/$/, "");
+const API_URL = "https://pharmacy-pms.onrender.com";
 
 function extractError(errData: any): string {
   if (errData == null) return "Something went wrong";
@@ -139,18 +139,9 @@ export async function fetchMedicine(id: string) {
 
 export async function fetchCategories() {
   const res = await fetch(API_URL + "/shop/categories");
-  if (!res.ok) {
-    const drugs = await fetchMedicines();
-    const cats: string[] = [];
-    for (const d of drugs) {
-      const cat = d.category;
-      if (typeof cat === "string" && cat.length > 0 && !cats.includes(cat)) {
-        cats.push(cat);
-      }
-    }
-    return cats.map((name: string) => ({ id: name, name }));
-  }
-  return res.json();
+  const data = await res.json();
+  const cats = data.categories || [];
+  return cats.map((name: string) => ({ id: name, name }));
 }
 
 export async function fetchRelated(id: string) {
