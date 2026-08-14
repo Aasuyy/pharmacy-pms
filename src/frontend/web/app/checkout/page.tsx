@@ -51,14 +51,14 @@ export default function CheckoutPage() {
         prescription_id: form.prescriptionId || null,
         notes: form.notes,
       });
-      setOrderId(res.order_id || "DEMO-" + Math.floor(Math.random() * 100000));
-    } catch (e) {
-      console.log("Backend order failed, showing demo success:", e);
-      setOrderId("DEMO-" + Math.floor(Math.random() * 100000));
+      setOrderId(res.order_id);
+      setDone(true);
+      clearCart();
+    } catch (e: any) {
+      alert("Failed to place order: " + e.message);
+    } finally {
+      setPlacing(false);
     }
-    setDone(true);
-    clearCart();
-    setPlacing(false);
   };
 
   if (done) {
@@ -90,7 +90,6 @@ export default function CheckoutPage() {
           <h1 className="text-xl font-bold text-slate-900">Checkout</h1>
         </div>
 
-        {/* Order Summary */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <h2 className="font-semibold text-slate-800">Order Summary ({items.length} items)</h2>
           {items.map((item) => (
@@ -108,7 +107,6 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* Shipping */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <MapPin size={18} /> Shipping Details
@@ -121,7 +119,6 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* Payment */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <CreditCard size={18} /> Payment Method
@@ -132,7 +129,6 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* Notes */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
           <textarea placeholder="Additional notes (optional)" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500 resize-none h-24" />
         </div>
