@@ -32,3 +32,9 @@ async def get_drug(drug_id: int):
     if not row:
         raise HTTPException(status_code=404, detail="Drug not found")
     return dict(row)
+@router.get("/categories")
+async def list_categories():
+    db = get_db()
+    rows = db.execute("SELECT DISTINCT category FROM drugs WHERE category IS NOT NULL ORDER BY category").fetchall()
+    db.close()
+    return {"categories": [r["category"] for r in rows]}
