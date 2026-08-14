@@ -45,7 +45,7 @@ export default function ShopPage() {
         fetchCategories(),
         getCart().catch(() => ({ item_count: 0 })),
       ]);
-      setMedicines((medsRes.drugs || medsRes.items || []).map((d: any) => ({
+      setMedicines((Array.isArray(medsRes) ? medsRes : []).map((d: any) => ({
           id: String(d.id),
           name: d.name,
           generic: d.generic_name || d.generic || "",
