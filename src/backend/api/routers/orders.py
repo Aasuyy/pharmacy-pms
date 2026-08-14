@@ -83,9 +83,17 @@ async def list_orders():
     conn, db_type = get_db()
     try:
         cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
         cur.execute("SELECT * FROM orders ORDER BY created_at DESC")
         rows = cur.fetchall()
-        return {"orders": [dict(row) for row in rows]}
+        orders = []
+        for row in rows:
+            order = dict(row)
+            cur.execute(f"SELECT * FROM order_items WHERE order_id = {ph}", (order["id"],))
+            items = cur.fetchall()
+            order["items"] = [dict(item) for item in items]
+            orders.append(order)
+        return {"orders": orders}
     finally:
         conn.close()
 
