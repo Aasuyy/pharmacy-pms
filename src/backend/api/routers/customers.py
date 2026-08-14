@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import sqlite3
-import os
+import hashlib
+import secrets
+import json
 
 from src.backend.api.deps import get_db
 
@@ -24,21 +25,21 @@ async def register_customer(data: CustomerRegister):
     conn, db_type = get_db()
     try:
         cur = conn.cursor()
-        import hashlib
         pw_hash = hashlib.sha256(data.password.encode()).hexdigest()
+        ph = "%s" if db_type == "postgres" else "?"
         
-        placeholder = "%s" if db_type == "postgres" else "?"
         try:
-            cur.execute(f"INSERT INTO users (email, password_hash, full_name, phone, role) VALUES ({','.join([placeholder]*5)})",
+            cur.execute(f"INSERT INTO users (email, password_hash, full_name, phone, role) VALUES ({','.join([ph]*5)})",
                        (data.email, pw_hash, data.full_name, data.phone, 'customer'))
             conn.commit()
-        except Exception as e:
+        except Exception:
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        cur.execute(f"SELECT id FROM users WHERE email = {placeholder}", (data.email,))
-        user_id = cur.fetchone()["id"] if db_type == "postgres" else cur.fetchone()[0]
+        cur.execute(f"SELECT id FROM users WHERE email = {ph}", (data.email,))
+        row = cur.fetchone()
+        user_id = row["id"] if db_type == "postgres" else row[0]
         
-        cur.execute(f"INSERT INTO customers (user_id, address, city) VALUES ({','.join([placeholder]*3)})",
+        cur.execute(f"INSERT INTO customers (user_id, address, city) VALUES ({','.join([ph]*3)})",
                    (user_id, data.address, data.city))
         conn.commit()
         return {"message": "Customer registered", "customer_id": user_id}
@@ -50,18 +51,16 @@ async def login_customer(data: CustomerLogin):
     conn, db_type = get_db()
     try:
         cur = conn.cursor()
-        import hashlib
         pw_hash = hashlib.sha256(data.password.encode()).hexdigest()
+        ph = "%s" if db_type == "postgres" else "?"
         
-        placeholder = "%s" if db_type == "postgres" else "?"
-        cur.execute(f"SELECT id, email, full_name, role FROM users WHERE email = {placeholder} AND password_hash = {placeholder}",
+        cur.execute(f"SELECT id, email, full_name, role FROM users WHERE email = {ph} AND password_hash = {ph}",
                    (data.email, pw_hash))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         user = dict(row)
-        import secrets
         token = secrets.token_urlsafe(32)
         return {"token": token, "user": user}
     finally:
@@ -69,20 +68,17 @@ async def login_customer(data: CustomerLogin):
 
 @router.get("/me")
 async def get_me():
-    return {"message": "Customer profile endpoint"}
-
-@router.get("/me")
-async def get_current_customer():
-    # Demo: return a mock customer if no auth (or implement JWT later)
-    return {
-        "id": 1,
-        "email": "guest@pharmapro.com",
-        "full_name": "Guest User",
-        "phone": "",
-        "role": "customer",
-        "address": "",
-        "city": "Kathmandu"
-    }
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        cur.execute(f"SELECT u.id, u.email, u.full_name, u.phone, u.role, c.address, c.city FROM users u LEFT JOIN customers c ON u.id = c.user_id LIMIT 1")
+        row = cur.fetchone()
+        if not row:
+            return {"id": 1, "email": "guest@pharmapro.com", "full_name": "Guest User", "phone": "", "role": "customer", "address": "", "city": "Kathmandu"}
+        return dict(row)
+    finally:
+        conn.close()
 
 @router.get("/orders")
 async def get_customer_orders():
@@ -90,7 +86,6 @@ async def get_customer_orders():
     try:
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
-        # Return orders with items for now
         cur.execute("SELECT * FROM orders ORDER BY created_at DESC LIMIT 20")
         rows = cur.fetchall()
         orders = []
