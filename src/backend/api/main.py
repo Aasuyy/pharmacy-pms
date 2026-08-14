@@ -7,7 +7,6 @@ from src.backend.api.routers import customers, shop, cart, orders, vendors
 from src.backend.api.routers import seed
 from src.backend.api.deps import get_db, init_tables, seed_drugs
 
-# Simple WebSocket manager
 class WSManager:
     def __init__(self):
         self.connections = []
@@ -43,7 +42,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include all routers
 app.include_router(drugs.router, prefix="/drugs", tags=["Drugs"])
 app.include_router(patients.router, prefix="/patients", tags=["Patients"])
 app.include_router(prescriptions.router, prefix="/prescriptions", tags=["Prescriptions"])
