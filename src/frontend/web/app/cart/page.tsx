@@ -4,7 +4,7 @@ import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, getTotal, getCount } = useCartStore();
+  const { items, removeItem, updateQuantity, getTotal, getCount, clearCart } = useCartStore();
 
   if (items.length === 0) {
     return (
@@ -24,14 +24,22 @@ export default function CartPage() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold text-slate-800">Shopping Cart ({getCount()})</h1>
-          <Link href="/shop" className="flex items-center gap-2 text-blue-600 hover:underline">
-            <ArrowLeft className="w-4 h-4" /> Continue Shopping
-          </Link>
+          <div className="flex gap-3">
+            <button onClick={clearCart} className="text-sm text-red-500 hover:underline">
+              Clear All
+            </button>
+            <Link href="/shop" className="flex items-center gap-2 text-blue-600 hover:underline text-sm">
+              <ArrowLeft className="w-4 h-4" /> Continue Shopping
+            </Link>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           {items.map((item) => (
             <div key={item.id} className="flex items-center gap-4 p-4 border-b border-slate-100 last:border-0">
+              <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center text-xl">
+                {item.image || "💊"}
+              </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-slate-800">{item.name}</h3>
                 <p className="text-sm text-slate-500">{item.generic}</p>
