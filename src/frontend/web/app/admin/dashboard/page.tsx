@@ -1,4 +1,7 @@
 "use client";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAdminAuthStore } from "@/store/adminAuthStore";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchOrders, updateOrderStatus } from "@/lib/api";
@@ -29,6 +32,12 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<number | null>(null);
+  const router = useRouter();
+  const { admin } = useAdminAuthStore();
+
+  useEffect(() => {
+    if (!admin) router.push("/admin/login");
+  }, [admin, router]);
 
   useEffect(() => {
     loadOrders();

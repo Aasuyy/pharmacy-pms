@@ -3,6 +3,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.backend.api.routers import customers, shop, cart, orders
+from src.backend.core import auth
 from src.backend.api.deps import get_db, init_tables, seed_drugs
 
 class WSManager:
@@ -45,6 +46,7 @@ app.include_router(customers.router, prefix="/customers", tags=["Customers"])
 app.include_router(shop.router, prefix="/shop", tags=["Shop"])
 app.include_router(cart.router, prefix="/cart", tags=["Cart"])
 app.include_router(orders.router, prefix="/orders", tags=["Orders"])
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 
 @app.websocket("/ws/alerts")
 async def websocket_alerts(websocket: WebSocket):
