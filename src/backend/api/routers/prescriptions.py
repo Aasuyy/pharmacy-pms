@@ -1,91 +1,52 @@
-"""Prescription router."""
-from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
-from datetime import datetime
-import sqlite3
+from typing import List, Optional
+from src.backend.api.deps import get_db
+import os
 
-from src.backend.api.deps import get_current_user, require_role, DB_PATH, UserOut
-
-router = APIRouter()
-
-class RxItem(BaseModel):
-    drug_id: int
-    quantity: int
-    dosage: Optional[str] = None
-    frequency: Optional[str] = None
-    duration: Optional[str] = None
-    instructions: Optional[str] = None
+router = APIRouter(tags=["Prescriptions"])
 
 class PrescriptionCreate(BaseModel):
-    patient_id: int
-    doctor_name: Optional[str] = None
-    doctor_license: Optional[str] = None
-    diagnosis: Optional[str] = None
-    items: List[RxItem]
-    status: str = "pending"  # pending, filled, cancelled
+    customer_id: int
+    notes: Optional[str] = ""
 
-class PrescriptionOut(PrescriptionCreate):
-    id: int
-    rx_code: Optional[str] = None
-    created_at: Optional[str] = None
-    filled_at: Optional[str] = None
-    filled_by: Optional[int] = None
+@router.post("/")
+async def create_prescription(customer_id: int = Form(...), notes: str = Form(""), file: UploadFile = File(...)):
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        # Save file info (in production, upload to cloud storage)
+        image_url = f"/uploads/{file.filename}"
+        ph = "%s" if db_type == "postgres" else "?"
+        cur.execute(f"INSERT INTO prescriptions (customer_id, image_url, notes) VALUES ({ph}, {ph}, {ph}) RETURNING id",
+                    (customer_id, image_url, notes))
+        result = cur.fetchone()
+        conn.commit()
+        return {"message": "Prescription uploaded", "id": result[0] if result else None, "image_url": image_url}
+    finally:
+        conn.close()
 
-@router.get("/", response_model=List[PrescriptionOut])
-async def list_prescriptions(
-    patient_id: Optional[int] = None,
-    status: Optional[str] = None,
-    current_user: UserOut = Depends(get_current_user)
-):
-    db = sqlite3.connect(DB_PATH)
-    db.row_factory = sqlite3.Row
-    query = "SELECT * FROM prescriptions WHERE 1=1"
-    params = []
-    if patient_id:
-        query += " AND patient_id = ?"
-        params.append(patient_id)
-    if status:
-        query += " AND status = ?"
-        params.append(status)
-    query += " ORDER BY created_at DESC"
-    rows = db.execute(query, params).fetchall()
-    db.close()
-    return [dict(r) for r in rows]
+@router.get("/")
+async def get_prescriptions():
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM prescriptions ORDER BY created_at DESC")
+        rows = cur.fetchall()
+        return {"prescriptions": [dict(row) for row in rows]}
+    finally:
+        conn.close()
 
-@router.post("/", response_model=PrescriptionOut, status_code=201)
-async def create_prescription(
-    rx: PrescriptionCreate,
-    current_user: UserOut = Depends(require_role("admin", "pharmacist", "technician"))
-):
-    db = sqlite3.connect(DB_PATH)
-    rx_code = f"RX-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    cursor = db.execute(
-        """INSERT INTO prescriptions (rx_code, patient_id, doctor_name, doctor_license, diagnosis, status, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (rx_code, rx.patient_id, rx.doctor_name, rx.doctor_license, rx.diagnosis, rx.status, current_user.id)
-    )
-    rx_id = cursor.lastrowid
-    for item in rx.items:
-        db.execute(
-            """INSERT INTO prescription_items (prescription_id, drug_id, quantity, dosage, frequency, duration, instructions)
-            VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (rx_id, item.drug_id, item.quantity, item.dosage, item.frequency, item.duration, item.instructions)
-        )
-    db.commit()
-    db.close()
-    return {**rx.dict(), "id": rx_id, "rx_code": rx_code, "created_at": datetime.now().isoformat()}
-
-@router.post("/{rx_id}/dispense")
-async def dispense_prescription(
-    rx_id: int,
-    current_user: UserOut = Depends(require_role("admin", "pharmacist"))
-):
-    db = sqlite3.connect(DB_PATH)
-    db.execute(
-        "UPDATE prescriptions SET status = 'filled', filled_at = ?, filled_by = ? WHERE id = ?",
-        (datetime.now().isoformat(), current_user.id, rx_id)
-    )
-    db.commit()
-    db.close()
-    return {"message": "Prescription dispensed"}
+@router.patch("/{prescription_id}/status")
+async def update_prescription_status(prescription_id: int, status: str):
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        cur.execute(f"UPDATE prescriptions SET status = {ph} WHERE id = {ph}", (status, prescription_id))
+        conn.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Prescription not found")
+        return {"message": "Status updated", "id": prescription_id, "status": status}
+    finally:
+        conn.close()

@@ -48,6 +48,7 @@ app.include_router(shop.router, prefix="/shop", tags=["Shop"])
 app.include_router(cart.router, prefix="/cart", tags=["Cart"])
 app.include_router(orders.router, prefix="/orders", tags=["Orders"])
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(prescriptions.router, prefix="/prescriptions", tags=["Prescriptions"])
 
 @app.websocket("/ws/alerts")
 async def websocket_alerts(websocket: WebSocket):
