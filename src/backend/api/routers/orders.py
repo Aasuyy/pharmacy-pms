@@ -120,6 +120,13 @@ async def get_order(order_id: int):
 
 @router.patch("/{order_id}/status")
 async def update_order_status(order_id: int, status: str):
+    try:
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def update_order_status(order_id: int, status: str):
     conn, db_type = get_db()
     try:
         cur = conn.cursor()
