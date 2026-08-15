@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchOrders } from "@/lib/api";
-import { Package, TrendingUp, Users, DollarSign, Clock, CheckCircle, Truck, Home } from "lucide-react";
+import { fetchOrders, updateOrderStatus } from "@/lib/api";
+import { Package, TrendingUp, Clock, CheckCircle, Truck, Home, ChevronDown } from "lucide-react";
 
 interface Order {
   id: number;
@@ -23,9 +23,12 @@ const statusConfig: Record<string, { icon: any; color: string; bg: string; label
   cancelled: { icon: Clock, color: "text-red-600", bg: "bg-red-50", label: "Cancelled" },
 };
 
+const statusOptions = ["pending", "processing", "shipped", "delivered", "cancelled"];
+
 export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<number | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -33,12 +36,25 @@ export default function AdminDashboard() {
 
   const loadOrders = async () => {
     try {
+      setLoading(true);
       const data = await fetchOrders();
       setOrders(data.orders || data || []);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (orderId: number, newStatus: string) => {
+    try {
+      setUpdating(orderId);
+      await updateOrderStatus(orderId, newStatus);
+      await loadOrders(); // Refresh to show updated status
+    } catch (err) {
+      alert("Failed to update status");
+    } finally {
+      setUpdating(null);
     }
   };
 
@@ -60,7 +76,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
@@ -72,7 +87,6 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-2">
@@ -83,7 +97,7 @@ export default function AdminDashboard() {
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-2">
-              <DollarSign size={20} className="text-green-500" />
+              <TrendingUp size={20} className="text-green-500" />
               <span className="text-xs font-medium text-slate-400">Revenue</span>
             </div>
             <p className="text-2xl font-bold text-slate-900">Rs. {stats.totalRevenue}</p>
@@ -104,7 +118,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Orders Table */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <h2 className="font-bold text-slate-900">Recent Orders</h2>
@@ -126,6 +139,7 @@ export default function AdminDashboard() {
                     <th className="px-4 py-3 text-left">Total</th>
                     <th className="px-4 py-3 text-left">Status</th>
                     <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-left">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -148,6 +162,24 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-500 text-xs">{formatDate(order.created_at)}</td>
+                        <td className="px-4 py-3">
+                          <div className="relative">
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                              disabled={updating === order.id}
+                              className="appearance-none bg-white border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                            >
+                              {statusOptions.map((s) => (
+                                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            {updating === order.id && (
+                              <span className="ml-2 text-xs text-blue-500">Saving...</span>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}

@@ -67,3 +67,9 @@ export const removeCustomerToken = () => {
     localStorage.removeItem("customer_token");
   }
 };
+
+// Admin
+export const updateOrderStatus = (id: number, status: string) => apiFetch(`/orders/${id}/status?status=${status}`, {
+  method: "PATCH",
+});
+
