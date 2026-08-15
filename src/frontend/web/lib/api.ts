@@ -69,7 +69,13 @@ export const removeCustomerToken = () => {
 };
 
 // Admin
-export const updateOrderStatus = (id: number, status: string) => apiFetch(`/orders/${id}/status?status=${status}`, {
-  method: "PATCH",
-});
+export const updateOrderStatus = async (id: number, status: string) => {
+  const url = `${BASE_URL}/orders/${id}/status?status=${encodeURIComponent(status)}`;
+  const res = await fetch(url, { method: "PATCH" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+};
 
