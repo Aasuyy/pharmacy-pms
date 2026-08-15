@@ -116,3 +116,18 @@ async def get_order(order_id: int):
         return result
     finally:
         conn.close()
+
+@router.patch("/{order_id}/status")
+async def update_order_status(order_id: int, status: str):
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        cur.execute(f"UPDATE orders SET status = {ph} WHERE id = {ph}", (status, order_id))
+        conn.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return {"message": "Status updated", "order_id": order_id, "status": status}
+    finally:
+        conn.close()
+
