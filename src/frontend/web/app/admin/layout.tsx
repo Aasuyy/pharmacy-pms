@@ -24,6 +24,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!admin) return null;
 
+  // Don't show sidebar on login page
+  if (pathname === "/admin/login") {
+    return <div className="min-h-screen bg-slate-50">{children}</div>;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar */}
