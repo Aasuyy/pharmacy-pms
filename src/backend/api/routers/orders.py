@@ -120,11 +120,10 @@ async def get_order(order_id: int):
 
 @router.patch("/{order_id}/status")
 async def update_order_status(order_id: int, status: str):
-    try:
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+    raise HTTPException(status_code=500, detail=str(e))
 
 async def update_order_status(order_id: int, status: str):
     conn, db_type = get_db()
@@ -147,7 +146,10 @@ async def update_order_status(order_id: int, status: str):
         phone = order_dict.get("shipping_address", {}).get("phone") if isinstance(order_dict.get("shipping_address"), dict) else None
         if phone:
             msg = f"Hi! Your PharmaPro order #{order_id} is now {status.upper()}. Thank you for choosing us!"
+            try:
             send_sms(phone, msg)
+        except Exception:
+            pass  # SMS not configured
         
         return {"message": "Status updated", "order_id": order_id, "status": status}
     finally:
