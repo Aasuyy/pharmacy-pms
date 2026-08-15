@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from typing import List, Optional
@@ -123,10 +124,24 @@ async def update_order_status(order_id: int, status: str):
     try:
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
+        
+        # Get order details first
+        cur.execute(f"SELECT * FROM orders WHERE id = {ph}", (order_id,))
+        order = cur.fetchone()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        order_dict = dict(order)
+        
+        # Update status
         cur.execute(f"UPDATE orders SET status = {ph} WHERE id = {ph}", (status, order_id))
         conn.commit()
-        if cur.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Order not found")
+        
+        # Send SMS notification
+        phone = order_dict.get("shipping_address", {}).get("phone") if isinstance(order_dict.get("shipping_address"), dict) else None
+        if phone:
+            msg = f"Hi! Your PharmaPro order #{order_id} is now {status.upper()}. Thank you for choosing us!"
+            send_sms(phone, msg)
+        
         return {"message": "Status updated", "order_id": order_id, "status": status}
     finally:
         conn.close()
