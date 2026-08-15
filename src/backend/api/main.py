@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.backend.api.routers import customers, shop, cart, orders
 from src.backend.api.routers import auth
-from src.backend.api.deps import get_db, init_tables, seed_drugs
+from src.backend.api.deps import get_db, init_tables, seed_drugs, seed_admins
 
 class WSManager:
     def __init__(self):
@@ -27,6 +27,7 @@ async def lifespan(app: FastAPI):
     try:
         init_tables(conn, db_type)
         seed_drugs(conn, db_type)
+        seed_admins(conn, db_type)
     finally:
         conn.close()
     yield

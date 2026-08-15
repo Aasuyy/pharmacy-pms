@@ -61,7 +61,12 @@ def seed_drugs(conn, db_type: str):
     sql = f"INSERT INTO drugs (name, generic_name, drug_code, category, manufacturer, stock, reorder_point, cost_price, selling_price, expiry_date, barcode, controlled) VALUES ({','.join([ph]*12)})"
     for d in drugs:
         cur.execute(sql, d)
-    # Seed default admin
+    conn.commit()
+    cur.close()
+    print(f"Seeded {len(drugs)} drugs into {'PostgreSQL' if db_type == 'postgres' else 'SQLite'}")
+
+def seed_admins(conn, db_type: str):
+    cur = conn.cursor()
     import hashlib
     admin_hash = hashlib.sha256("admin123".encode()).hexdigest()
     ph = "%s" if db_type == "postgres" else "?"
@@ -69,4 +74,4 @@ def seed_drugs(conn, db_type: str):
                 ("admin@pharmapro.com", admin_hash, "Admin User"))
     conn.commit()
     cur.close()
-    print(f"Seeded {len(drugs)} drugs into {'PostgreSQL' if db_type == 'postgres' else 'SQLite'}")
+    print("Admin seed checked")
