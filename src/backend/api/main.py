@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.backend.api.routers import customers, shop, cart, orders
+from src.backend.api.routers import customers, shop, cart, orders, prescriptions
 from src.backend.api.routers import auth
 from src.backend.api.deps import get_db, init_tables, seed_drugs, seed_admins
 
