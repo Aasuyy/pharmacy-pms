@@ -83,18 +83,13 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">PharmaPro Admin</h1>
-            <p className="text-xs text-slate-500">Manage orders, inventory & analytics</p>
-          </div>
-          <Link href="/shop" className="text-sm text-blue-600 hover:text-blue-700 font-medium">← Back to Shop</Link>
-        </div>
+    <div>
+      <div className="bg-white border-b border-slate-200 px-6 py-4">
+        <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-xs text-slate-500">Overview of your pharmacy</p>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-6xl px-6 py-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-2">
