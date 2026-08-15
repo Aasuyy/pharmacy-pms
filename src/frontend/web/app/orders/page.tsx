@@ -121,7 +121,7 @@ export default function OrdersPage() {
           const status = statusConfig[order.status] || statusConfig.pending;
           const StatusIcon = status.icon;
           return (
-            <div key={order.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <Link key={order.id} href={`/orders/${order.id}`} className="block bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
               {/* Order Header */}
               <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -157,7 +157,7 @@ export default function OrdersPage() {
                   <p className="text-lg font-bold text-slate-900">Rs. {order.total}</p>
                 </div>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
