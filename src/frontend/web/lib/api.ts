@@ -69,12 +69,20 @@ export const removeCustomerToken = () => {
 };
 
 // Admin
-export const updateOrderStatus = async (id: number, status: string) => {
-  const url = `${BASE_URL}/orders/${id}/status?status=${encodeURIComponent(status)}`;
-  const res = await fetch(url, { 
+const res = await fetch(url, { 
     method: "PATCH",
     headers: { "Content-Type": "application/json" }
   });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  return res.json();
+};
+
+export const updateOrderStatus = async (id: number, status: string) => {
+  const url = `${BASE_URL}/orders/${id}/status?status=${encodeURIComponent(status)}`;
+  const res = await fetch(url, { method: "PATCH" });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `HTTP ${res.status}`);
