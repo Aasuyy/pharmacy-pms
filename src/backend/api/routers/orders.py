@@ -1,3 +1,11 @@
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+import io
+from datetime import datetime
+
 import os
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
@@ -5,6 +13,7 @@ from typing import List, Optional
 import json
 
 from src.backend.api.deps import get_db
+
 
 router = APIRouter()
 
@@ -149,3 +158,97 @@ async def update_order_status(order_id: int, status: str):
         return {"message": "Status updated", "order_id": order_id, "status": status}
     finally:
         conn.close()
+
+@router.get("/{order_id}/invoice")
+def download_invoice(order_id: int):
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        
+        # Get order
+        cur.execute(f"SELECT * FROM orders WHERE id = {ph}", (order_id,))
+        order_row = cur.fetchone()
+        if not order_row:
+            raise HTTPException(status_code=404, detail="Order not found")
+        order = dict(order_row)
+        
+        # Get customer
+        customer_id = order.get("customer_id")
+        cur.execute(f"SELECT full_name, email, phone, address, city FROM customers WHERE id = {ph}", (customer_id,))
+        cust_row = cur.fetchone()
+        customer = dict(cust_row) if cust_row else {}
+        
+        # Get items
+        cur.execute(f"SELECT * FROM order_items WHERE order_id = {ph}", (order_id,))
+        item_rows = cur.fetchall()
+        items = [dict(r) for r in item_rows]
+        
+        # Build PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=30)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Header
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor("#1e40af"), spaceAfter=20)
+        elements.append(Paragraph("PharmaPro", title_style))
+        elements.append(Paragraph("Pharmacy Management System", styles['Normal']))
+        elements.append(Paragraph("Kathmandu, Nepal | pharmacy@pharmapro.com", styles['Normal']))
+        elements.append(Spacer(1, 20))
+        
+        # Invoice info
+        elements.append(Paragraph(f"<b>INVOICE #{order_id}</b>", styles['Heading2']))
+        elements.append(Paragraph(f"Date: {order.get('created_at', datetime.now().isoformat())[:10]}", styles['Normal']))
+        elements.append(Paragraph(f"Status: {order.get('status', 'N/A').upper()}", styles['Normal']))
+        elements.append(Spacer(1, 20))
+        
+        # Customer info
+        elements.append(Paragraph("<b>BILL TO:</b>", styles['Heading3']))
+        elements.append(Paragraph(f"{customer.get('full_name', 'Guest')}", styles['Normal']))
+        elements.append(Paragraph(f"{customer.get('email', '')}", styles['Normal']))
+        elements.append(Paragraph(f"{customer.get('phone', '')}", styles['Normal']))
+        elements.append(Paragraph(f"{customer.get('address', '')}, {customer.get('city', '')}", styles['Normal']))
+        elements.append(Spacer(1, 20))
+        
+        # Items table
+        table_data = [["#", "Medicine", "Qty", "Unit Price", "Total"]]
+        for idx, item in enumerate(items, 1):
+            table_data.append([
+                str(idx),
+                item.get("drug_name", "Item"),
+                str(item.get("quantity", 1)),
+                f"Rs. {item.get('unit_price', 0)}",
+                f"Rs. {item.get('quantity', 1) * item.get('unit_price', 0)}"
+            ])
+        
+        # Add total row
+        table_data.append(["", "", "", "TOTAL", f"Rs. {order.get('total', 0)}"])
+        
+        table = Table(table_data, colWidths=[0.5*inch, 3*inch, 0.8*inch, 1.2*inch, 1.2*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1e40af")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -2), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('BACKGROUND', (0, 1), (-1, -2), colors.HexColor("#f8fafc")),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#e2e8f0")),
+        ]))
+        elements.append(table)
+        elements.append(Spacer(1, 30))
+        
+        # Footer
+        elements.append(Paragraph("<i>Thank you for choosing PharmaPro. Get well soon!</i>", styles['Italic']))
+        
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return StreamingResponse(buffer, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=invoice_{order_id}.pdf"})
+    finally:
+        conn.close()
+
