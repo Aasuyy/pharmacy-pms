@@ -104,19 +104,40 @@ def list_customers():
     conn, db_type = get_db()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT c.id, u.full_name, u.email, u.phone, c.address, c.city, c.created_at FROM customers c JOIN users u ON c.user_id = u.id ORDER BY c.id DESC")
+        # Use LEFT JOIN and COALESCE in case user is missing or columns don't exist
+        cur.execute("""
+            SELECT c.id, COALESCE(u.full_name, 'Unknown') as full_name, 
+                   COALESCE(u.email, '') as email, COALESCE(u.phone, '') as phone, 
+                   COALESCE(c.address, '') as address, COALESCE(c.city, 'Kathmandu') as city 
+            FROM customers c 
+            LEFT JOIN users u ON c.user_id = u.id 
+            ORDER BY c.id DESC
+        """)
         rows = cur.fetchall()
         customers = []
         for row in rows:
-            customers.append({
-                "id": row["id"],
-                "full_name": row["full_name"],
-                "email": row["email"],
-                "phone": row["phone"],
-                "address": row["address"],
-                "city": row["city"],
-                "created_at": row["created_at"]
-            })
+            if hasattr(row, "keys"):
+                customers.append({
+                    "id": row["id"],
+                    "full_name": row["full_name"],
+                    "email": row["email"],
+                    "phone": row["phone"],
+                    "address": row["address"],
+                    "city": row["city"],
+                    "created_at": ""
+                })
+            else:
+                cols = [desc[0] for desc in cur.description]
+                d = dict(zip(cols, row))
+                customers.append({
+                    "id": d["id"],
+                    "full_name": d["full_name"],
+                    "email": d["email"],
+                    "phone": d["phone"],
+                    "address": d["address"],
+                    "city": d["city"],
+                    "created_at": ""
+                })
         return {"customers": customers}
     finally:
         conn.close()
