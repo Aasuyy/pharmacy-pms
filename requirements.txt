@@ -78,3 +78,4 @@ pydantic-settings
 psycopg2-binary==2.9.9
 psycopg2-binary==2.9.9
 reportlab==4.2.2
+cloudinary
