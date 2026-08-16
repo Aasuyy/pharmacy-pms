@@ -132,7 +132,7 @@ def create_drug(data: DrugCreate):
         
         cur.execute(query, values)
         row = cur.fetchone()
-        new_id = row[0] if row else None
+        new_id = row["id"] if row and hasattr(row, "keys") else (row[0] if row else None)
         conn.commit()
         return {"message": "Drug created", "id": new_id}
     except Exception as e:
