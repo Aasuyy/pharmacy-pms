@@ -98,3 +98,26 @@ async def get_customer_orders():
         return {"orders": orders}
     finally:
         conn.close()
+
+@router.get("/")
+def list_customers():
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, full_name, email, phone, address, city, created_at FROM customers ORDER BY id DESC")
+        rows = cur.fetchall()
+        customers = []
+        for row in rows:
+            customers.append({
+                "id": row["id"],
+                "full_name": row["full_name"],
+                "email": row["email"],
+                "phone": row["phone"],
+                "address": row["address"],
+                "city": row["city"],
+                "created_at": row["created_at"]
+            })
+        return {"customers": customers}
+    finally:
+        conn.close()
+
