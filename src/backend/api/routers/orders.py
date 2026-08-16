@@ -171,18 +171,36 @@ def download_invoice(order_id: int):
         order_row = cur.fetchone()
         if not order_row:
             raise HTTPException(status_code=404, detail="Order not found")
-        order = dict(order_row)
+        
+        # Handle both dict-like and tuple-like rows
+        if hasattr(order_row, 'keys'):
+            order = dict(order_row)
+        else:
+            cols = [desc[0] for desc in cur.description]
+            order = dict(zip(cols, order_row))
         
         # Get customer
         customer_id = order.get("customer_id")
         cur.execute(f"SELECT full_name, email, phone, address, city FROM customers WHERE id = {ph}", (customer_id,))
         cust_row = cur.fetchone()
-        customer = dict(cust_row) if cust_row else {}
+        if cust_row and hasattr(cust_row, 'keys'):
+            customer = dict(cust_row)
+        elif cust_row:
+            cols = [desc[0] for desc in cur.description]
+            customer = dict(zip(cols, cust_row))
+        else:
+            customer = {}
         
         # Get items
         cur.execute(f"SELECT * FROM order_items WHERE order_id = {ph}", (order_id,))
         item_rows = cur.fetchall()
-        items = [dict(r) for r in item_rows]
+        items = []
+        for r in item_rows:
+            if hasattr(r, 'keys'):
+                items.append(dict(r))
+            else:
+                cols = [desc[0] for desc in cur.description]
+                items.append(dict(zip(cols, r)))
         
         # Build PDF
         buffer = io.BytesIO()
@@ -199,7 +217,7 @@ def download_invoice(order_id: int):
         
         # Invoice info
         elements.append(Paragraph(f"<b>INVOICE #{order_id}</b>", styles['Heading2']))
-        elements.append(Paragraph(f"Date: {order.get('created_at', datetime.now().isoformat())[:10]}", styles['Normal']))
+        elements.append(Paragraph(f"Date: {str(order.get('created_at', ''))[:10]}", styles['Normal']))
         elements.append(Paragraph(f"Status: {order.get('status', 'N/A').upper()}", styles['Normal']))
         elements.append(Spacer(1, 20))
         
@@ -214,12 +232,15 @@ def download_invoice(order_id: int):
         # Items table
         table_data = [["#", "Medicine", "Qty", "Unit Price", "Total"]]
         for idx, item in enumerate(items, 1):
+            name = item.get("drug_name") or item.get("name") or f"Item #{item.get('drug_id', idx)}"
+            qty = item.get("quantity", 1)
+            price = item.get("unit_price", 0)
             table_data.append([
                 str(idx),
-                item.get("drug_name", "Item"),
-                str(item.get("quantity", 1)),
-                f"Rs. {item.get('unit_price', 0)}",
-                f"Rs. {item.get('quantity', 1) * item.get('unit_price', 0)}"
+                name,
+                str(qty),
+                f"Rs. {price}",
+                f"Rs. {qty * price}"
             ])
         
         # Add total row
@@ -249,10 +270,10 @@ def download_invoice(order_id: int):
         buffer.seek(0)
         
         return StreamingResponse(buffer, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=invoice_{order_id}.pdf"})
-            finally:
-                conn.close()
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
