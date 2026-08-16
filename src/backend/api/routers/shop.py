@@ -65,6 +65,8 @@ class DrugCreate(BaseModel):
     price: float
     stock: int
     reorder_point: int = 10
+    manufacture_date: Optional[str] = None
+    manufacture_date: Optional[str] = None
     expiry_date: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
@@ -77,6 +79,8 @@ class DrugUpdate(BaseModel):
     price: Optional[float] = None
     stock: Optional[int] = None
     reorder_point: Optional[int] = None
+    manufacture_date: Optional[str] = None
+    manufacture_date: Optional[str] = None
     expiry_date: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
@@ -89,13 +93,13 @@ def create_drug(data: DrugCreate):
         ph = "%s" if db_type == "postgres" else "?"
         
         cur.execute(f"""
-            INSERT INTO drugs (name, generic_name, category, manufacturer, price, stock, reorder_point, expiry_date, description, image_url)
-            VALUES ({','.join([ph]*10)})
+            INSERT INTO drugs (name, generic_name, category, manufacturer, price, stock, reorder_point, manufacture_date, expiry_date, description, image_url)
+            VALUES ({','.join([ph]*11)})
             RETURNING id
         """, (
             data.name, data.generic_name, data.category, data.manufacturer,
-            data.price, data.stock, data.reorder_point, data.expiry_date,
-            data.description, data.image_url
+            data.price, data.stock, data.reorder_point, data.manufacture_date,
+            data.expiry_date, data.description, data.image_url
         ))
         
         new_id = cur.fetchone()[0]
@@ -135,6 +139,9 @@ def update_drug(drug_id: int, data: DrugUpdate):
         if data.reorder_point is not None:
             fields.append(f"reorder_point = {ph}")
             values.append(data.reorder_point)
+        if data.manufacture_date is not None:
+            fields.append(f"manufacture_date = {ph}")
+            values.append(data.manufacture_date)
         if data.expiry_date is not None:
             fields.append(f"expiry_date = {ph}")
             values.append(data.expiry_date)
