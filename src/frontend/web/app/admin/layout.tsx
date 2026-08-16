@@ -1,4 +1,5 @@
 "use client";
+import ToastProvider from "./toast-provider";
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAdminAuthStore } from "@/store/adminAuthStore";
@@ -26,7 +27,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Don't show sidebar on login page
   if (pathname === "/admin/login") {
-    return <div className="min-h-screen bg-slate-50">{children}</div>;
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <ToastProvider />
+        {children}
+      </div>
+    );
   }
 
   return (

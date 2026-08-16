@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { fetchOrders, updateOrderStatus } from "@/lib/api";
 import { Package, Clock, CheckCircle, Truck, Home, ChevronDown, Search } from "lucide-react";
@@ -52,7 +53,7 @@ export default function AdminOrdersPage() {
       await updateOrderStatus(orderId, newStatus);
       await loadOrders();
     } catch (err) {
-      alert("Failed to update status");
+      toast.error("Failed to update status");
     } finally {
       setUpdating(null);
     }
