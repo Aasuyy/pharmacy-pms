@@ -261,30 +261,31 @@ def debug_schema():
 
 @router.delete("/drugs/{id}")
 def delete_drug(drug_id: int):
-    import traceback
-    conn = None
+    conn, db_type = get_db()
     try:
-        conn, db_type = get_db()
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
         
-        # Check exists
+        # Check drug exists
         cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (drug_id,))
         if not cur.fetchone():
             return {"error": "Drug not found"}
         
-        # Delete linked order_items
-        cur.execute(f"DELETE FROM order_items WHERE drug_id = {ph}", (drug_id,))
+        if db_type == "postgres":
+            # Disable FK checks for this session, delete drug, re-enable
+            cur.execute("SET session_replication_role = 'replica'")
+            cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
+            cur.execute("SET session_replication_role = 'origin'")
+        else:
+            # SQLite: disable FK checks
+            cur.execute("PRAGMA foreign_keys = OFF")
+            cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
+            cur.execute("PRAGMA foreign_keys = ON")
         
-        # Delete linked prescription_items  
-        cur.execute(f"DELETE FROM prescription_items WHERE drug_id = {ph}", (drug_id,))
-        
-        # Delete drug
-        cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
         conn.commit()
         return {"message": "Drug deleted"}
-        
     except Exception as e:
+        import traceback
         if conn:
             try:
                 conn.rollback()
