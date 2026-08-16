@@ -105,31 +105,54 @@ class DrugUpdate(BaseModel):
 @router.post("/drugs")
 def create_drug(data: DrugCreate):
     conn, db_type = get_db()
+    cur = None
     try:
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
         
+        # Build dynamic INSERT - only include fields that have values
+        fields = ["name", "generic_name", "category", "manufacturer", "price", "stock", "reorder_point"]
+        values = [data.name, data.generic_name, data.category, data.manufacturer, data.price, data.stock, data.reorder_point]
+        
+        if data.manufacture_date:
+            fields.append("manufacture_date")
+            values.append(data.manufacture_date)
+        if data.expiry_date:
+            fields.append("expiry_date")
+            values.append(data.expiry_date)
+        if data.description:
+            fields.append("description")
+            values.append(data.description)
+        if data.image_url:
+            fields.append("image_url")
+            values.append(data.image_url)
+        
+        placeholders = ",".join([ph] * len(values))
+        query = f"INSERT INTO drugs ({','.join(fields)}) VALUES ({placeholders}) RETURNING id"
+        
+        cur.execute(query, values)
+        row = cur.fetchone()
+        new_id = row[0] if row else None
+        conn.commit()
+        return {"message": "Drug created", "id": new_id}
+    except Exception as e:
+        import traceback
+        error_msg = f"ERROR: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg, flush=True)
         try:
-            cur.execute(f"""
-                INSERT INTO drugs (name, generic_name, category, manufacturer, price, stock, reorder_point, manufacture_date, expiry_date, description, image_url)
-                VALUES ({','.join([ph]*11)})
-                RETURNING id
-            """, (
-                data.name, data.generic_name, data.category, data.manufacturer,
-                data.price, data.stock, data.reorder_point, data.manufacture_date,
-                data.expiry_date, data.description, data.image_url
-            ))
-            
-            new_id = cur.fetchone()[0]
-            conn.commit()
-            return {"message": "Drug created", "id": new_id}
-        except Exception as e:
-            conn.rollback()
-            import traceback
-            error_detail = str(e) + "\n" + traceback.format_exc()
-            raise HTTPException(status_code=500, detail=error_detail)
+            if conn:
+                conn.rollback()
+        except:
+            pass
+        raise HTTPException(status_code=500, detail=error_msg)
     finally:
-        conn.close()
+        try:
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
+        except:
+            pass
 
 @router.put("/drugs/{drug_id}")
 def update_drug(drug_id: int, data: DrugUpdate):
