@@ -23,6 +23,7 @@ interface Drug {
   price: number;
   stock: number;
   reorder_point: number;
+  manufacture_date?: string;
   expiry_date?: string;
   description?: string;
   image_url?: string;
@@ -44,6 +45,7 @@ export default function AdminInventoryPage() {
     price: "",
     stock: "",
     reorder_point: "10",
+    manufacture_date: "",
     expiry_date: "",
     description: "",
     image_url: ""
@@ -86,6 +88,7 @@ export default function AdminInventoryPage() {
       price: String(drug.price),
       stock: String(drug.stock),
       reorder_point: String(drug.reorder_point || 10),
+      manufacture_date: drug.manufacture_date || "",
       expiry_date: drug.expiry_date || "",
       description: drug.description || "",
       image_url: drug.image_url || ""
@@ -372,14 +375,25 @@ export default function AdminInventoryPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Expiry Date</label>
-                  <input
-                    type="date"
-                    value={form.expiry_date}
-                    onChange={(e) => setForm({...form, expiry_date: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Manufacture Date</label>
+                    <input
+                      type="date"
+                      value={form.manufacture_date}
+                      onChange={(e) => setForm({...form, manufacture_date: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Expiry Date</label>
+                    <input
+                      type="date"
+                      value={form.expiry_date}
+                      onChange={(e) => setForm({...form, expiry_date: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
 
                 <div>
