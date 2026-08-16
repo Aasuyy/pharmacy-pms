@@ -56,6 +56,7 @@ export default function AdminInventoryPage() {
   }, []);
 
   const loadDrugs = async () => {
+    setLoading(true);
     try {
       setLoading(true);
       const res = await fetch(`${API_URL}/shop/drugs`);

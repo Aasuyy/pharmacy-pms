@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware, WebSocket, WebSocketDisconnect
 from src.backend.api.routers import customers, shop, cart, orders, prescriptions
 from src.backend.api.routers import auth
 from src.backend.api.deps import get_db, init_tables, seed_drugs, seed_admins
@@ -34,14 +33,6 @@ async def lifespan(app: FastAPI):
     print("Pharmacy API shutting down...")
 
 app = FastAPI(title="Pharmacy PMS API", version="3.0.0", lifespan=lifespan)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://pharmacy-pms-33ii.vercel.app", "http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
 
 app.include_router(customers.router, prefix="/customers", tags=["Customers"])
 app.include_router(shop.router, prefix="/shop", tags=["Shop"])
