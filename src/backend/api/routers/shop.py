@@ -262,10 +262,33 @@ def debug_schema():
 @router.delete("/drugs/{id}")
 def delete_drug(id: int):
     conn, db_type = get_db()
-    cur = conn.cursor()
-    ph = "%s" if db_type == "postgres" else "?"
-    cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
-    conn.commit()
-    conn.close()
-    return {"message": "Drug deleted"}
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        
+        # Check if drug exists
+        cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Drug not found")
+        
+        # Delete linked order_items first (foreign key constraint)
+        cur.execute(f"DELETE FROM order_items WHERE drug_id = {ph}", (id,))
+        
+        # Delete linked prescription_items if table exists
+        try:
+            cur.execute(f"DELETE FROM prescription_items WHERE drug_id = {ph}", (id,))
+        except:
+            pass  # Table may not exist
+        
+        # Now delete the drug
+        cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
+        conn.commit()
+        return {"message": "Drug deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
