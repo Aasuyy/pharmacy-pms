@@ -72,8 +72,8 @@ export default function AdminInventoryPage() {
     setEditingDrug(null);
     setForm({
       name: "", generic_name: "", category: "", manufacturer: "",
-      price: "", stock: "", reorder_point: "10", expiry_date: "",
-      description: "", image_url: ""
+      price: "", stock: "", reorder_point: "10", manufacture_date: "",
+      expiry_date: "", description: "", image_url: ""
     });
     setShowModal(true);
   };
@@ -98,12 +98,21 @@ export default function AdminInventoryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
-      ...form,
+    const payload: any = {
+      name: form.name,
+      generic_name: form.generic_name,
+      category: form.category,
+      manufacturer: form.manufacturer,
       price: parseFloat(form.price),
       stock: parseInt(form.stock),
-      reorder_point: parseInt(form.reorder_point)
+      reorder_point: parseInt(form.reorder_point),
+      expiry_date: form.expiry_date || null,
+      description: form.description || null,
+      image_url: form.image_url || null
     };
+    if (form.manufacture_date) {
+      payload.manufacture_date = form.manufacture_date;
+    }
 
     try {
       const url = editingDrug 
