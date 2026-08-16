@@ -204,9 +204,13 @@ export default function AdminInventoryPage() {
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                            <Package size={14} />
-                          </div>
+                          {drug.image_url ? (
+                            <img src={drug.image_url} alt={drug.name} className="w-8 h-8 rounded-lg object-cover border border-slate-200" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                              <Package size={14} />
+                            </div>
+                          )}
                           <div>
                             <p className="font-medium text-slate-900">{drug.name}</p>
                             <p className="text-xs text-slate-500">{drug.generic_name}</p>
@@ -379,13 +383,24 @@ export default function AdminInventoryPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Image URL</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Drug Image</label>
                   <input
-                    value={form.image_url}
-                    onChange={(e) => setForm({...form, image_url: e.target.value})}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setForm({...form, image_url: reader.result as string});
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100"
                   />
+                  {form.image_url && (
+                    <img src={form.image_url} alt="Preview" className="mt-2 w-20 h-20 object-cover rounded-lg border border-slate-200" />
+                  )}
                 </div>
 
                 <div>
