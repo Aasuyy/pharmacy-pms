@@ -261,30 +261,11 @@ def debug_schema():
 
 @router.delete("/drugs/{id}")
 def delete_drug(id: int):
-    import traceback
-    try:
-        conn, db_type = get_db()
-        cur = conn.cursor()
-        ph = "%s" if db_type == "postgres" else "?"
-        
-        cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (id,))
-        row = cur.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Drug not found")
-        
-        cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
-        conn.commit()
-        return {"message": "Drug deleted"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        error_detail = f"DELETE ERROR: {str(e)}\n{traceback.format_exc()}"
-        print(error_detail, flush=True)
-        raise HTTPException(status_code=500, detail=error_detail)
-    finally:
-        try:
-            if 'conn' in locals() and conn:
-                conn.close()
-        except:
-            pass
+    conn, db_type = get_db()
+    cur = conn.cursor()
+    ph = "%s" if db_type == "postgres" else "?"
+    cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Drug deleted"}
 
