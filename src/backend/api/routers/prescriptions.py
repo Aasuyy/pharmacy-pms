@@ -50,3 +50,25 @@ async def update_prescription_status(prescription_id: int, status: str):
         return {"message": "Status updated", "id": prescription_id, "status": status}
     finally:
         conn.close()
+
+@router.patch("/{prescription_id}/status")
+def update_prescription_status(prescription_id: int, status: str):
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        
+        # Validate status
+        if status not in ["pending", "approved", "rejected"]:
+            raise HTTPException(status_code=400, detail="Invalid status. Must be pending, approved, or rejected")
+        
+        cur.execute(f"UPDATE prescriptions SET status = {ph} WHERE id = {ph}", (status, prescription_id))
+        conn.commit()
+        
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Prescription not found")
+        
+        return {"message": f"Prescription {status}", "id": prescription_id, "status": status}
+    finally:
+        conn.close()
+
