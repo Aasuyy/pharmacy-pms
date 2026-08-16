@@ -260,6 +260,7 @@ def debug_schema():
         conn.close()
 
 
+
 @router.delete("/drugs/{id}")
 def delete_drug(id: int):
     conn, db_type = get_db()
@@ -272,22 +273,23 @@ def delete_drug(id: int):
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Drug not found")
         
+        # Auto-find ALL tables with FK to drugs.id and delete linked rows
         if db_type == "postgres":
-            # Auto-find ALL tables that have FK references to drugs.id
             cur.execute("""
                 SELECT kcu.table_name, kcu.column_name
-                FROM information_schema.referential_constraints rc
+                FROM information_schema.table_constraints tc
                 JOIN information_schema.key_column_usage kcu
-                    ON rc.constraint_name = kcu.constraint_name
+                    ON tc.constraint_name = kcu.constraint_name
                 JOIN information_schema.constraint_column_usage ccu
-                    ON rc.unique_constraint_name = ccu.constraint_name
-                WHERE ccu.table_name = 'drugs'
+                    ON tc.constraint_name = ccu.constraint_name
+                WHERE tc.constraint_type = 'FOREIGN KEY'
+                AND ccu.table_name = 'drugs'
                 AND ccu.column_name = 'id'
             """)
             for table_name, col_name in cur.fetchall():
                 cur.execute(f"DELETE FROM {table_name} WHERE {col_name} = {ph}", (id,))
         
-        # Now safe to delete the drug
+        # Now delete the drug itself
         cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
         conn.commit()
         return {"message": "Drug deleted"}
