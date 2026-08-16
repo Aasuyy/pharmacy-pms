@@ -268,38 +268,29 @@ def delete_drug(drug_id: int):
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
         
-        # Check drug exists
+        # Check exists
         cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (drug_id,))
         if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="Drug not found")
+            return {"error": "Drug not found"}
         
-        # Try to delete linked records from order_items (ignore if table doesn't exist)
-        try:
-            cur.execute(f"DELETE FROM order_items WHERE drug_id = {ph}", (drug_id,))
-        except Exception:
-            pass
+        # Delete linked order_items
+        cur.execute(f"DELETE FROM order_items WHERE drug_id = {ph}", (drug_id,))
         
-        # Try to delete linked records from prescription_items (ignore if table doesn't exist)
-        try:
-            cur.execute(f"DELETE FROM prescription_items WHERE drug_id = {ph}", (drug_id,))
-        except Exception:
-            pass
+        # Delete linked prescription_items  
+        cur.execute(f"DELETE FROM prescription_items WHERE drug_id = {ph}", (drug_id,))
         
-        # Delete the drug
+        # Delete drug
         cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
         conn.commit()
         return {"message": "Drug deleted"}
         
-    except HTTPException:
-        raise
     except Exception as e:
-        error_detail = f"ERROR: {str(e)}\n{traceback.format_exc()}"
         if conn:
             try:
                 conn.rollback()
             except:
                 pass
-        raise HTTPException(status_code=500, detail=error_detail)
+        return {"error": str(e), "traceback": traceback.format_exc()}
     finally:
         if conn:
             try:
