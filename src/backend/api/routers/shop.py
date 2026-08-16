@@ -215,3 +215,24 @@ async def upload_image(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
+@router.get("/debug/schema")
+def debug_schema():
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        if db_type == "postgres":
+            cur.execute("""
+                SELECT column_name, data_type, is_nullable 
+                FROM information_schema.columns 
+                WHERE table_name = 'drugs' 
+                ORDER BY ordinal_position
+            """)
+        else:
+            cur.execute("PRAGMA table_info(drugs)")
+        rows = cur.fetchall()
+        return {"db_type": db_type, "columns": [dict(row) if hasattr(row, "keys") else list(row) for row in rows]}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
