@@ -401,14 +401,22 @@ export default function AdminInventoryPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        setForm({...form, image_url: reader.result as string});
-                      };
-                      reader.readAsDataURL(file);
+                      const uploadData = new FormData();
+                      uploadData.append("file", file);
+                      try {
+                        const res = await fetch(`${API_URL}/shop/upload/image`, {
+                          method: "POST",
+                          body: uploadData
+                        });
+                        const data = await res.json();
+                        setForm({...form, image_url: data.url});
+                        toast.success("Image uploaded to Cloudinary");
+                      } catch {
+                        toast.error("Image upload failed");
+                      }
                     }}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100"
                   />
