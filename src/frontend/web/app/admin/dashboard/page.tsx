@@ -311,7 +311,7 @@ export default function AdminDashboard() {
                 <p className="font-semibold text-slate-900">Manage Orders</p>
                 <p className="text-xs text-slate-500">View and update order statuses</p>
               </div>
-            </a>
+            </Link>
             <Link href="/admin/inventory" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all group">
               <div className="p-3 rounded-lg bg-emerald-100 text-emerald-600 group-hover:bg-emerald-200">
                 <Package size={20} />
@@ -320,7 +320,7 @@ export default function AdminDashboard() {
                 <p className="font-semibold text-slate-900">Inventory</p>
                 <p className="text-xs text-slate-500">Check stock and expiry dates</p>
               </div>
-            </a>
+            </Link>
             <Link href="/admin/customers" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-violet-300 hover:bg-violet-50 transition-all group">
               <div className="p-3 rounded-lg bg-violet-100 text-violet-600 group-hover:bg-violet-200">
                 <Users size={20} />
@@ -329,7 +329,7 @@ export default function AdminDashboard() {
                 <p className="font-semibold text-slate-900">Customers</p>
                 <p className="text-xs text-slate-500">View registered customers</p>
               </div>
-            </a>
+            </Link>
             <Link href="/admin/prescriptions" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition-all group">
               <div className="p-3 rounded-lg bg-amber-100 text-amber-600 group-hover:bg-amber-200">
                 <AlertTriangle size={20} />
@@ -338,7 +338,7 @@ export default function AdminDashboard() {
                 <p className="font-semibold text-slate-900">Prescriptions</p>
                 <p className="text-xs text-slate-500">Review pending prescriptions</p>
               </div>
-            </a>
+            </Link>
           </div>
         </motion.div>
       </div>
