@@ -270,22 +270,15 @@ def delete_drug(id: int):
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Drug not found")
         
-        try:
-            cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
-            conn.commit()
-            return {"message": "Drug deleted"}
-        except Exception as inner_e:
-            conn.rollback()
-            error_str = str(inner_e).lower()
-            if "foreign" in error_str or "constraint" in error_str or "referential" in error_str:
-                raise HTTPException(
-                    status_code=409, 
-                    detail="Cannot delete: this drug is linked to existing orders or prescriptions. Remove those first."
-                )
-            raise HTTPException(status_code=500, detail=str(inner_e))
+        cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
+        conn.commit()
+        return {"message": "Drug deleted"}
     except HTTPException:
         raise
     except Exception as e:
+        err = str(e).lower()
+        if "foreign" in err or "constraint" in err or "referential" in err:
+            raise HTTPException(status_code=409, detail="Cannot delete: drug is linked to orders/prescriptions")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
