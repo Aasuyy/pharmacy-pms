@@ -249,6 +249,10 @@ def download_invoice(order_id: int):
         buffer.seek(0)
         
         return StreamingResponse(buffer, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=invoice_{order_id}.pdf"})
-    finally:
-        conn.close()
+            finally:
+                conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
