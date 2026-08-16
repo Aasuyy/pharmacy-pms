@@ -283,76 +283,90 @@ def get_analytics():
     conn, db_type = get_db()
     try:
         cur = conn.cursor()
-        ph = "%s" if db_type == "postgres" else "?"
+        
+        def row_to_dict(row, cursor):
+            if hasattr(row, "keys") and callable(getattr(row, "keys", None)):
+                return dict(row)
+            cols = [desc[0] for desc in cursor.description]
+            return dict(zip(cols, row))
+        
+        def safe_query(query, fallback=None):
+            try:
+                cur.execute(query)
+                row = cur.fetchone()
+                if row is None:
+                    return fallback
+                d = row_to_dict(row, cur)
+                return d
+            except Exception as e:
+                print(f"Analytics query failed: {e}")
+                return fallback
         
         # Metric cards
-        cur.execute("SELECT COALESCE(SUM(total), 0) as revenue, COUNT(*) as count FROM orders")
-        row = cur.fetchone()
-        total_revenue = float(row["revenue"] if hasattr(row, "keys") else row[0])
-        total_orders = row["count"] if hasattr(row, "keys") else row[1]
+        revenue_data = safe_query("SELECT COALESCE(SUM(total), 0) as revenue, COUNT(*) as count FROM orders", {"revenue": 0, "count": 0})
+        total_revenue = float(revenue_data.get("revenue", 0))
+        total_orders = int(revenue_data.get("count", 0))
         
-        cur.execute("SELECT COUNT(*) as count FROM customers")
-        row = cur.fetchone()
-        total_customers = row["count"] if hasattr(row, "keys") else row[0]
+        customer_data = safe_query("SELECT COUNT(*) as count FROM customers", {"count": 0})
+        total_customers = int(customer_data.get("count", 0))
         
-        cur.execute("SELECT COUNT(*) as count FROM drugs WHERE stock <= reorder_point")
-        row = cur.fetchone()
-        low_stock = row["count"] if hasattr(row, "keys") else row[0]
+        # Check if reorder_point column exists
+        try:
+            low_stock_data = safe_query("SELECT COUNT(*) as count FROM drugs WHERE stock <= reorder_point", {"count": 0})
+            low_stock = int(low_stock_data.get("count", 0))
+        except:
+            low_stock = 0
         
         # Last 30 days revenue
-        if db_type == "postgres":
-            cur.execute(f"""
-                SELECT DATE(created_at) as date, COALESCE(SUM(total), 0) as revenue 
-                FROM orders 
-                WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
-                GROUP BY DATE(created_at) 
-                ORDER BY date
-            """)
-        else:
-            cur.execute("""
-                SELECT DATE(created_at) as date, COALESCE(SUM(total), 0) as revenue 
-                FROM orders 
-                WHERE created_at >= DATE('now', '-30 days')
-                GROUP BY DATE(created_at) 
-                ORDER BY date
-            """)
-        
         daily_revenue = []
-        for r in cur.fetchall():
-            if hasattr(r, "keys"):
-                daily_revenue.append({"date": str(r["date"]), "revenue": float(r["revenue"])})
+        try:
+            if db_type == "postgres":
+                cur.execute("""
+                    SELECT DATE(created_at) as date, COALESCE(SUM(total), 0) as revenue 
+                    FROM orders 
+                    WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+                    GROUP BY DATE(created_at) 
+                    ORDER BY date
+                """)
             else:
-                cols = [desc[0] for desc in cur.description]
-                d = dict(zip(cols, r))
-                daily_revenue.append({"date": str(d["date"]), "revenue": float(d["revenue"])})
+                cur.execute("""
+                    SELECT DATE(created_at) as date, COALESCE(SUM(total), 0) as revenue 
+                    FROM orders 
+                    WHERE created_at >= DATE('now', '-30 days')
+                    GROUP BY DATE(created_at) 
+                    ORDER BY date
+                """)
+            for r in cur.fetchall():
+                d = row_to_dict(r, cur)
+                daily_revenue.append({"date": str(d.get("date", "")), "revenue": float(d.get("revenue", 0))})
+        except Exception as e:
+            print(f"Daily revenue query failed: {e}")
         
-        # Top 5 medicines by quantity sold
-        cur.execute("""
-            SELECT drug_name, SUM(quantity) as total_qty 
-            FROM order_items 
-            GROUP BY drug_name 
-            ORDER BY total_qty DESC 
-            LIMIT 5
-        """)
+        # Top 5 medicines
         top_medicines = []
-        for r in cur.fetchall():
-            if hasattr(r, "keys"):
-                top_medicines.append({"name": r["drug_name"], "quantity": int(r["total_qty"])})
-            else:
-                cols = [desc[0] for desc in cur.description]
-                d = dict(zip(cols, r))
-                top_medicines.append({"name": d["drug_name"], "quantity": int(d["total_qty"])})
+        try:
+            cur.execute("""
+                SELECT drug_name, SUM(quantity) as total_qty 
+                FROM order_items 
+                GROUP BY drug_name 
+                ORDER BY total_qty DESC 
+                LIMIT 5
+            """)
+            for r in cur.fetchall():
+                d = row_to_dict(r, cur)
+                top_medicines.append({"name": d.get("drug_name", "Unknown"), "quantity": int(d.get("total_qty", 0))})
+        except Exception as e:
+            print(f"Top medicines query failed: {e}")
         
-        # Order status distribution
-        cur.execute("SELECT status, COUNT(*) as count FROM orders GROUP BY status")
+        # Status distribution
         status_dist = []
-        for r in cur.fetchall():
-            if hasattr(r, "keys"):
-                status_dist.append({"status": r["status"], "count": int(r["count"])})
-            else:
-                cols = [desc[0] for desc in cur.description]
-                d = dict(zip(cols, r))
-                status_dist.append({"status": d["status"], "count": int(d["count"])})
+        try:
+            cur.execute("SELECT status, COUNT(*) as count FROM orders GROUP BY status")
+            for r in cur.fetchall():
+                d = row_to_dict(r, cur)
+                status_dist.append({"status": d.get("status", "unknown"), "count": int(d.get("count", 0))})
+        except Exception as e:
+            print(f"Status distribution query failed: {e}")
         
         return {
             "metrics": {
@@ -365,6 +379,10 @@ def get_analytics():
             "top_medicines": top_medicines,
             "status_distribution": status_dist
         }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
