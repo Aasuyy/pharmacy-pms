@@ -109,19 +109,25 @@ def create_drug(data: DrugCreate):
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
         
-        cur.execute(f"""
-            INSERT INTO drugs (name, generic_name, category, manufacturer, price, stock, reorder_point, manufacture_date, expiry_date, description, image_url)
-            VALUES ({','.join([ph]*11)})
-            RETURNING id
-        """, (
-            data.name, data.generic_name, data.category, data.manufacturer,
-            data.price, data.stock, data.reorder_point, data.manufacture_date,
-            data.expiry_date, data.description, data.image_url
-        ))
-        
-        new_id = cur.fetchone()[0]
-        conn.commit()
-        return {"message": "Drug created", "id": new_id}
+        try:
+            cur.execute(f"""
+                INSERT INTO drugs (name, generic_name, category, manufacturer, price, stock, reorder_point, manufacture_date, expiry_date, description, image_url)
+                VALUES ({','.join([ph]*11)})
+                RETURNING id
+            """, (
+                data.name, data.generic_name, data.category, data.manufacturer,
+                data.price, data.stock, data.reorder_point, data.manufacture_date,
+                data.expiry_date, data.description, data.image_url
+            ))
+            
+            new_id = cur.fetchone()[0]
+            conn.commit()
+            return {"message": "Drug created", "id": new_id}
+        except Exception as e:
+            conn.rollback()
+            import traceback
+            error_detail = str(e) + "\n" + traceback.format_exc()
+            raise HTTPException(status_code=500, detail=error_detail)
     finally:
         conn.close()
 
