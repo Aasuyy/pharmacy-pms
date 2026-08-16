@@ -213,23 +213,6 @@ def update_drug(drug_id: int, data: DrugUpdate):
     finally:
         conn.close()
 
-@router.delete("/drugs/{drug_id}")
-def delete_drug(drug_id: int):
-    conn, db_type = get_db()
-    try:
-        cur = conn.cursor()
-        ph = "%s" if db_type == "postgres" else "?"
-        
-        cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
-        conn.commit()
-        
-        if cur.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Drug not found")
-        
-        return {"message": "Drug deleted", "id": drug_id}
-    finally:
-        conn.close()
-
 @router.post("/upload/image")
 async def upload_image(file: UploadFile = File(...)):
     try:
@@ -259,26 +242,26 @@ def debug_schema():
     finally:
         conn.close()
 
-@router.delete("/drugs/{id}")
-def delete_drug(id: int):
+
+@router.delete("/drugs/{drug_id}")
+def delete_drug(drug_id: int):
     conn, db_type = get_db()
     try:
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
         
-        cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (id,))
+        cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (drug_id,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Drug not found")
         
-        # Hardcode deletion from ALL known linked tables (ignore if table doesn't exist)
-        linked_tables = ["order_items", "prescription_items", "stock_logs", "inventory_transactions"]
-        for table in linked_tables:
+        # Delete from all known linked tables (ignore if missing)
+        for table in ["order_items", "prescription_items", "stock_logs", "inventory_transactions"]:
             try:
-                cur.execute(f"DELETE FROM {table} WHERE drug_id = {ph}", (id,))
+                cur.execute(f"DELETE FROM {table} WHERE drug_id = {ph}", (drug_id,))
             except Exception:
                 pass
         
-        cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
+        cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
         conn.commit()
         return {"message": "Drug deleted"}
     except HTTPException:
@@ -296,4 +279,3 @@ def delete_drug(id: int):
                 conn.close()
             except:
                 pass
-
