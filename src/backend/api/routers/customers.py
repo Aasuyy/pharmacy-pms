@@ -104,7 +104,7 @@ def list_customers():
     conn, db_type = get_db()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id, full_name, email, phone, address, city, created_at FROM customers ORDER BY id DESC")
+        cur.execute("SELECT c.id, u.full_name, u.email, u.phone, c.address, c.city, c.created_at FROM customers c JOIN users u ON c.user_id = u.id ORDER BY c.id DESC")
         rows = cur.fetchall()
         customers = []
         for row in rows:

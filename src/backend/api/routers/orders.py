@@ -179,9 +179,9 @@ def download_invoice(order_id: int):
             cols = [desc[0] for desc in cur.description]
             order = dict(zip(cols, order_row))
         
-        # Get customer
+        # Get customer (JOIN with users table)
         customer_id = order.get("customer_id")
-        cur.execute(f"SELECT full_name, email, phone, address, city FROM customers WHERE id = {ph}", (customer_id,))
+        cur.execute(f"SELECT u.full_name, u.email, u.phone, c.address, c.city FROM customers c JOIN users u ON c.user_id = u.id WHERE c.id = {ph}", (customer_id,))
         cust_row = cur.fetchone()
         if cust_row and hasattr(cust_row, 'keys'):
             customer = dict(cust_row)
