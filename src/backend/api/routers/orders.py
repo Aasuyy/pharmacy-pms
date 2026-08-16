@@ -278,3 +278,93 @@ def download_invoice(order_id: int):
     finally:
         conn.close()
 
+@router.get("/admin/analytics")
+def get_analytics():
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        
+        # Metric cards
+        cur.execute("SELECT COALESCE(SUM(total), 0) as revenue, COUNT(*) as count FROM orders")
+        row = cur.fetchone()
+        total_revenue = float(row["revenue"] if hasattr(row, "keys") else row[0])
+        total_orders = row["count"] if hasattr(row, "keys") else row[1]
+        
+        cur.execute("SELECT COUNT(*) as count FROM customers")
+        row = cur.fetchone()
+        total_customers = row["count"] if hasattr(row, "keys") else row[0]
+        
+        cur.execute("SELECT COUNT(*) as count FROM drugs WHERE stock <= reorder_point")
+        row = cur.fetchone()
+        low_stock = row["count"] if hasattr(row, "keys") else row[0]
+        
+        # Last 30 days revenue
+        if db_type == "postgres":
+            cur.execute(f"""
+                SELECT DATE(created_at) as date, COALESCE(SUM(total), 0) as revenue 
+                FROM orders 
+                WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+                GROUP BY DATE(created_at) 
+                ORDER BY date
+            """)
+        else:
+            cur.execute("""
+                SELECT DATE(created_at) as date, COALESCE(SUM(total), 0) as revenue 
+                FROM orders 
+                WHERE created_at >= DATE('now', '-30 days')
+                GROUP BY DATE(created_at) 
+                ORDER BY date
+            """)
+        
+        daily_revenue = []
+        for r in cur.fetchall():
+            if hasattr(r, "keys"):
+                daily_revenue.append({"date": str(r["date"]), "revenue": float(r["revenue"])})
+            else:
+                cols = [desc[0] for desc in cur.description]
+                d = dict(zip(cols, r))
+                daily_revenue.append({"date": str(d["date"]), "revenue": float(d["revenue"])})
+        
+        # Top 5 medicines by quantity sold
+        cur.execute("""
+            SELECT drug_name, SUM(quantity) as total_qty 
+            FROM order_items 
+            GROUP BY drug_name 
+            ORDER BY total_qty DESC 
+            LIMIT 5
+        """)
+        top_medicines = []
+        for r in cur.fetchall():
+            if hasattr(r, "keys"):
+                top_medicines.append({"name": r["drug_name"], "quantity": int(r["total_qty"])})
+            else:
+                cols = [desc[0] for desc in cur.description]
+                d = dict(zip(cols, r))
+                top_medicines.append({"name": d["drug_name"], "quantity": int(d["total_qty"])})
+        
+        # Order status distribution
+        cur.execute("SELECT status, COUNT(*) as count FROM orders GROUP BY status")
+        status_dist = []
+        for r in cur.fetchall():
+            if hasattr(r, "keys"):
+                status_dist.append({"status": r["status"], "count": int(r["count"])})
+            else:
+                cols = [desc[0] for desc in cur.description]
+                d = dict(zip(cols, r))
+                status_dist.append({"status": d["status"], "count": int(d["count"])})
+        
+        return {
+            "metrics": {
+                "total_revenue": total_revenue,
+                "total_orders": total_orders,
+                "total_customers": total_customers,
+                "low_stock": low_stock
+            },
+            "daily_revenue": daily_revenue,
+            "top_medicines": top_medicines,
+            "status_distribution": status_dist
+        }
+    finally:
+        conn.close()
+
