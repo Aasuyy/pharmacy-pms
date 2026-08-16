@@ -98,6 +98,14 @@ export default function AdminInventoryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Submit clicked", form);
+    
+    // Validate required fields
+    if (!form.name || !form.generic_name || !form.category || !form.manufacturer || !form.price || !form.stock) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+    
     const payload: any = {
       name: form.name,
       generic_name: form.generic_name,
@@ -105,7 +113,7 @@ export default function AdminInventoryPage() {
       manufacturer: form.manufacturer,
       price: parseFloat(form.price),
       stock: parseInt(form.stock),
-      reorder_point: parseInt(form.reorder_point),
+      reorder_point: parseInt(form.reorder_point || "10"),
       expiry_date: form.expiry_date || null,
       description: form.description || null,
       image_url: form.image_url || null
@@ -113,11 +121,15 @@ export default function AdminInventoryPage() {
     if (form.manufacture_date) {
       payload.manufacture_date = form.manufacture_date;
     }
+    
+    console.log("Payload:", payload);
 
     try {
       const url = editingDrug 
         ? `${API_URL}/shop/drugs/${editingDrug.id}`
         : `${API_URL}/shop/drugs`;
+      
+      console.log("Sending to:", url);
       
       const res = await fetch(url, {
         method: editingDrug ? "PUT" : "POST",
@@ -125,13 +137,20 @@ export default function AdminInventoryPage() {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error("Failed");
+      console.log("Response status:", res.status);
+      
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Server error:", errText);
+        throw new Error(errText);
+      }
 
       toast.success(editingDrug ? "Drug updated" : "Drug added");
       setShowModal(false);
       loadDrugs();
-    } catch {
-      toast.error("Failed to save drug");
+    } catch (err: any) {
+      console.error("Submit error:", err);
+      toast.error(err.message || "Failed to save drug");
     }
   };
 

@@ -259,3 +259,34 @@ def debug_schema():
     finally:
         conn.close()
 
+@router.delete("/drugs/{id}")
+def delete_drug(id: int):
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        
+        cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Drug not found")
+        
+        try:
+            cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
+            conn.commit()
+            return {"message": "Drug deleted"}
+        except Exception as inner_e:
+            conn.rollback()
+            error_str = str(inner_e).lower()
+            if "foreign" in error_str or "constraint" in error_str or "referential" in error_str:
+                raise HTTPException(
+                    status_code=409, 
+                    detail="Cannot delete: this drug is linked to existing orders or prescriptions. Remove those first."
+                )
+            raise HTTPException(status_code=500, detail=str(inner_e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
