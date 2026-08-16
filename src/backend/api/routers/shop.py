@@ -278,7 +278,7 @@ def delete_drug(id: int):
     except Exception as e:
         err = str(e).lower()
         if "foreign" in err or "constraint" in err or "referential" in err:
-            raise HTTPException(status_code=409, detail="Cannot delete: drug is linked to orders/prescriptions")
+            raise HTTPException(status_code=409, detail="Cannot delete: this drug is linked to existing orders or prescriptions")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
