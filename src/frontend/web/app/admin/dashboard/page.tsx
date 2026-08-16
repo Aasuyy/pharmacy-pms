@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
@@ -302,7 +303,7 @@ export default function AdminDashboard() {
         >
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <a href="/admin/orders" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all group">
+            <Link href="/admin/orders" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all group">
               <div className="p-3 rounded-lg bg-blue-100 text-blue-600 group-hover:bg-blue-200">
                 <ShoppingCart size={20} />
               </div>
@@ -311,7 +312,7 @@ export default function AdminDashboard() {
                 <p className="text-xs text-slate-500">View and update order statuses</p>
               </div>
             </a>
-            <a href="/admin/inventory" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all group">
+            <Link href="/admin/inventory" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all group">
               <div className="p-3 rounded-lg bg-emerald-100 text-emerald-600 group-hover:bg-emerald-200">
                 <Package size={20} />
               </div>
@@ -320,7 +321,7 @@ export default function AdminDashboard() {
                 <p className="text-xs text-slate-500">Check stock and expiry dates</p>
               </div>
             </a>
-            <a href="/admin/customers" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-violet-300 hover:bg-violet-50 transition-all group">
+            <Link href="/admin/customers" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-violet-300 hover:bg-violet-50 transition-all group">
               <div className="p-3 rounded-lg bg-violet-100 text-violet-600 group-hover:bg-violet-200">
                 <Users size={20} />
               </div>
@@ -329,7 +330,7 @@ export default function AdminDashboard() {
                 <p className="text-xs text-slate-500">View registered customers</p>
               </div>
             </a>
-            <a href="/admin/prescriptions" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition-all group">
+            <Link href="/admin/prescriptions" className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition-all group">
               <div className="p-3 rounded-lg bg-amber-100 text-amber-600 group-hover:bg-amber-200">
                 <AlertTriangle size={20} />
               </div>
