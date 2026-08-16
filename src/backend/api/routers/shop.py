@@ -260,35 +260,50 @@ def debug_schema():
         conn.close()
 
 @router.delete("/drugs/{id}")
-def delete_drug(id: int):
-    conn, db_type = get_db()
+def delete_drug(drug_id: int):
+    import traceback
+    conn = None
     try:
+        conn, db_type = get_db()
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
         
-        # Check if drug exists
-        cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (id,))
+        # Check drug exists
+        cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (drug_id,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Drug not found")
         
-        # Delete linked order_items first (foreign key constraint)
-        cur.execute(f"DELETE FROM order_items WHERE drug_id = {ph}", (id,))
-        
-        # Delete linked prescription_items if table exists
+        # Try to delete linked records from order_items (ignore if table doesn't exist)
         try:
-            cur.execute(f"DELETE FROM prescription_items WHERE drug_id = {ph}", (id,))
-        except:
-            pass  # Table may not exist
+            cur.execute(f"DELETE FROM order_items WHERE drug_id = {ph}", (drug_id,))
+        except Exception:
+            pass
         
-        # Now delete the drug
-        cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
+        # Try to delete linked records from prescription_items (ignore if table doesn't exist)
+        try:
+            cur.execute(f"DELETE FROM prescription_items WHERE drug_id = {ph}", (drug_id,))
+        except Exception:
+            pass
+        
+        # Delete the drug
+        cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
         conn.commit()
         return {"message": "Drug deleted"}
+        
     except HTTPException:
         raise
     except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        error_detail = f"ERROR: {str(e)}\n{traceback.format_exc()}"
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        raise HTTPException(status_code=500, detail=error_detail)
     finally:
-        conn.close()
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
 
