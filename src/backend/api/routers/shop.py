@@ -259,43 +259,50 @@ def debug_schema():
     finally:
         conn.close()
 
+
 @router.delete("/drugs/{id}")
-def delete_drug(drug_id: int):
+def delete_drug(id: int):
     conn, db_type = get_db()
     try:
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
         
         # Check drug exists
-        cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (drug_id,))
+        cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (id,))
         if not cur.fetchone():
-            return {"error": "Drug not found"}
+            raise HTTPException(status_code=404, detail="Drug not found")
         
         if db_type == "postgres":
-            # Disable FK checks for this session, delete drug, re-enable
-            cur.execute("SET session_replication_role = 'replica'")
-            cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
-            cur.execute("SET session_replication_role = 'origin'")
-        else:
-            # SQLite: disable FK checks
-            cur.execute("PRAGMA foreign_keys = OFF")
-            cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
-            cur.execute("PRAGMA foreign_keys = ON")
+            # Auto-find ALL tables that have FK references to drugs.id
+            cur.execute("""
+                SELECT kcu.table_name, kcu.column_name
+                FROM information_schema.referential_constraints rc
+                JOIN information_schema.key_column_usage kcu
+                    ON rc.constraint_name = kcu.constraint_name
+                JOIN information_schema.constraint_column_usage ccu
+                    ON rc.unique_constraint_name = ccu.constraint_name
+                WHERE ccu.table_name = 'drugs'
+                AND ccu.column_name = 'id'
+            """)
+            for table_name, col_name in cur.fetchall():
+                cur.execute(f"DELETE FROM {table_name} WHERE {col_name} = {ph}", (id,))
         
+        # Now safe to delete the drug
+        cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
         conn.commit()
         return {"message": "Drug deleted"}
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback
         if conn:
             try:
                 conn.rollback()
             except:
                 pass
-        return {"error": str(e), "traceback": traceback.format_exc()}
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         if conn:
             try:
                 conn.close()
             except:
                 pass
-
