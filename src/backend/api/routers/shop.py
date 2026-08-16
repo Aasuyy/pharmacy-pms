@@ -259,8 +259,6 @@ def debug_schema():
     finally:
         conn.close()
 
-
-
 @router.delete("/drugs/{id}")
 def delete_drug(id: int):
     conn, db_type = get_db()
@@ -268,28 +266,18 @@ def delete_drug(id: int):
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
         
-        # Check drug exists
         cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (id,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Drug not found")
         
-        # Auto-find ALL tables with FK to drugs.id and delete linked rows
-        if db_type == "postgres":
-            cur.execute("""
-                SELECT kcu.table_name, kcu.column_name
-                FROM information_schema.table_constraints tc
-                JOIN information_schema.key_column_usage kcu
-                    ON tc.constraint_name = kcu.constraint_name
-                JOIN information_schema.constraint_column_usage ccu
-                    ON tc.constraint_name = ccu.constraint_name
-                WHERE tc.constraint_type = 'FOREIGN KEY'
-                AND ccu.table_name = 'drugs'
-                AND ccu.column_name = 'id'
-            """)
-            for table_name, col_name in cur.fetchall():
-                cur.execute(f"DELETE FROM {table_name} WHERE {col_name} = {ph}", (id,))
+        # Hardcode deletion from ALL known linked tables (ignore if table doesn't exist)
+        linked_tables = ["order_items", "prescription_items", "stock_logs", "inventory_transactions"]
+        for table in linked_tables:
+            try:
+                cur.execute(f"DELETE FROM {table} WHERE drug_id = {ph}", (id,))
+            except Exception:
+                pass
         
-        # Now delete the drug itself
         cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (id,))
         conn.commit()
         return {"message": "Drug deleted"}
@@ -308,3 +296,4 @@ def delete_drug(id: int):
                 conn.close()
             except:
                 pass
+
