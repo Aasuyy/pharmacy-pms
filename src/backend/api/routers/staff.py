@@ -10,8 +10,11 @@ def list_staff():
     try:
         cur = conn.cursor()
         cur.execute("SELECT * FROM staff_members ORDER BY id DESC")
+        rows = cur.fetchall()
+        if rows and hasattr(rows[0], "keys"):
+            return [dict(row) for row in rows]
         cols = [desc[0] for desc in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
+        return [dict(zip(cols, row)) for row in rows]
     finally:
         conn.close()
 
@@ -37,8 +40,11 @@ def list_shifts():
     try:
         cur = conn.cursor()
         cur.execute("SELECT s.*, m.full_name as staff_name FROM shifts s LEFT JOIN staff_members m ON s.staff_id = m.id ORDER BY s.id DESC")
+        rows = cur.fetchall()
+        if rows and hasattr(rows[0], "keys"):
+            return [dict(row) for row in rows]
         cols = [desc[0] for desc in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
+        return [dict(zip(cols, row)) for row in rows]
     finally:
         conn.close()
 
