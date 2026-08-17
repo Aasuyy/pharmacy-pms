@@ -103,3 +103,44 @@ def pos_checkout(payload: dict):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+@router.get("/reports/sales")
+def get_sales_report():
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        
+        # Total revenue & orders count
+        cur.execute("SELECT COUNT(id), COALESCE(SUM(total_amount), 0) FROM orders")
+        row = cur.fetchone()
+        total_orders = row[0] if row else 0
+        total_revenue = float(row[1]) if row else 0.0
+
+        # Top selling drugs
+        top_drugs = []
+        try:
+            cur.execute("""
+                SELECT d.name, SUM(oi.quantity) as total_qty, SUM(oi.quantity * oi.price) as total_sales
+                FROM order_items oi
+                JOIN drugs d ON oi.drug_id = d.id
+                GROUP BY d.name
+                ORDER BY total_qty DESC
+                LIMIT 5
+            """)
+            for r in cur.fetchall():
+                top_drugs.append({
+                    "name": r[0],
+                    "total_quantity": r[1],
+                    "total_sales": float(r[2]) if r[2] else 0.0
+                })
+        except Exception as e:
+            print(f"Top drugs report error: {e}")
+
+        return {
+            "total_orders": total_orders,
+            "total_revenue": total_revenue,
+            "top_drugs": top_drugs
+        }
+    finally:
+        conn.close()
+
