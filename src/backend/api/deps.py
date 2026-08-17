@@ -1,5 +1,5 @@
 import os
-from typing import Generator, Optional, List, Callable
+from typing import Generator, Optional, List, Callable, Union
 from fastapi import Depends, HTTPException, status, WebSocket
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -78,10 +78,18 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
         raise credentials_exception
     return user
 
-def require_role(allowed_roles: List[str]) -> Callable:
+def require_role(*allowed_roles: Union[str, List[str], tuple]) -> Callable:
+    # Normalize inputs whether passed as require_role("admin", "pharmacist") or require_role(["admin", "pharmacist"])
+    roles = []
+    for role in allowed_roles:
+        if isinstance(role, (list, tuple, set)):
+            roles.extend(role)
+        else:
+            roles.append(role)
+
     def role_checker(current_user=Depends(get_current_user)):
         user_role = getattr(current_user, "role", None)
-        if user_role not in allowed_roles:
+        if user_role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Operation not permitted for this role",
