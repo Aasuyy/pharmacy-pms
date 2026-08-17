@@ -7,6 +7,7 @@ import { LayoutDashboard, ShoppingBag, Package, Users, FileText, LogOut } from "
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/pos", label: "POS", icon: ShoppingCart },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/inventory", label: "Inventory", icon: Package },
   { href: "/admin/customers", label: "Customers", icon: Users },

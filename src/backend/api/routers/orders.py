@@ -386,3 +386,69 @@ def get_analytics():
     finally:
         conn.close()
 
+@router.post("/checkout")
+def checkout(data: dict):
+    """Create order and deduct inventory"""
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        
+        items = data.get("items", [])
+        if not items:
+            raise HTTPException(status_code=400, detail="No items in cart")
+        
+        total = 0
+        for item in items:
+            # Verify stock
+            cur.execute(f"SELECT stock_quantity, price FROM drugs WHERE id = {ph}", (item["drug_id"],))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail=f"Drug {item['drug_id']} not found")
+            
+            stock, price = row[0], row[1]
+            if stock < item["quantity"]:
+                raise HTTPException(status_code=400, detail=f"Insufficient stock for drug {item['drug_id']}")
+            
+            total += price * item["quantity"]
+        
+        # Create order
+        if db_type == "postgres":
+            cur.execute(
+                "INSERT INTO orders (customer_name, total_amount, status) VALUES (%s, %s, %s) RETURNING id",
+                (data.get("customer_name", "Walk-in"), total, "completed")
+            )
+            order_id = cur.fetchone()[0]
+        else:
+            cur.execute(
+                "INSERT INTO orders (customer_name, total_amount, status) VALUES (?, ?, ?)",
+                (data.get("customer_name", "Walk-in"), total, "completed")
+            )
+            order_id = cur.lastrowid
+        
+        # Create order items and deduct stock
+        for item in items:
+            cur.execute(
+                f"INSERT INTO order_items (order_id, drug_id, quantity, price) VALUES ({ph}, {ph}, {ph}, {ph})",
+                (order_id, item["drug_id"], item["quantity"], item["price"])
+            )
+            cur.execute(
+                f"UPDATE drugs SET stock_quantity = stock_quantity - {ph} WHERE id = {ph}",
+                (item["quantity"], item["drug_id"])
+            )
+        
+        conn.commit()
+        return {"message": "Order created", "order_id": order_id, "total": total}
+    except HTTPException:
+        raise
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
