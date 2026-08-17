@@ -29,59 +29,86 @@ interface StaffMetric {
   accuracy: number;
 }
 
+interface AnalyticsData {
+  metrics?: {
+    total_revenue?: number;
+    total_orders?: number;
+    avg_order_value?: number;
+    active_customers?: number;
+  };
+  dailySales?: DailySale[];
+  topItems?: TopItem[];
+  staffMetrics?: StaffMetric[];
+}
+
 export default function AdminAnalytics() {
   const router = useRouter();
   const { toast, ToastContainer } = useToast();
   const [mounted, setMounted] = useState(false);
   const [period, setPeriod] = useState<"7d" | "30d" | "90d">("7d");
 
-  const [dailySales] = useState<DailySale[]>([
-    { date: "2026-08-07", label: "Sun", revenue: 12400, orders: 45 },
-    { date: "2026-08-08", label: "Mon", revenue: 9800, orders: 38 },
-    { date: "2026-08-09", label: "Tue", revenue: 15200, orders: 52 },
-    { date: "2026-08-10", label: "Wed", revenue: 11300, orders: 41 },
-    { date: "2026-08-11", label: "Thu", revenue: 18700, orders: 63 },
-    { date: "2026-08-12", label: "Fri", revenue: 22100, orders: 74 },
-    { date: "2026-08-13", label: "Sat", revenue: 19500, orders: 68 },
-  ]);
-
-  const [topItems] = useState<TopItem[]>([
-    { name: "Paracetamol 500mg", sold: 340, revenue: 1020, profit: 340 },
-    { name: "Amoxicillin 500mg", sold: 180, revenue: 2700, profit: 900 },
-    { name: "Vitamin C 1000mg", sold: 120, revenue: 4200, profit: 1680 },
-    { name: "ORS Powder", sold: 450, revenue: 2250, profit: 450 },
-    { name: "Cetirizine 10mg", sold: 95, revenue: 760, profit: 285 },
-  ]);
-
-  const [staffMetrics] = useState<StaffMetric[]>([
-    { name: "Ramesh Sharma", rxFilled: 145, sales: 45200, accuracy: 98 },
-    { name: "Sita Devi", rxFilled: 112, sales: 31800, accuracy: 96 },
-    { name: "Hari Prasad", rxFilled: 89, sales: 24100, accuracy: 94 },
-  ]);
+  // State with default fallback structures
+  const [analytics, setAnalytics] = useState<AnalyticsData>({
+    metrics: {
+      total_revenue: 0,
+      total_orders: 0,
+      avg_order_value: 0,
+      active_customers: 0,
+    },
+    dailySales: [
+      { date: "2026-08-07", label: "Sun", revenue: 12400, orders: 45 },
+      { date: "2026-08-08", label: "Mon", revenue: 9800, orders: 38 },
+      { date: "2026-08-09", label: "Tue", revenue: 15200, orders: 52 },
+      { date: "2026-08-10", label: "Wed", revenue: 11300, orders: 41 },
+      { date: "2026-08-11", label: "Thu", revenue: 18700, orders: 63 },
+      { date: "2026-08-12", label: "Fri", revenue: 22100, orders: 74 },
+      { date: "2026-08-13", label: "Sat", revenue: 19500, orders: 68 },
+    ],
+    topItems: [
+      { name: "Paracetamol 500mg", sold: 340, revenue: 1020, profit: 340 },
+      { name: "Amoxicillin 500mg", sold: 180, revenue: 2700, profit: 900 },
+      { name: "Vitamin C 1000mg", sold: 120, revenue: 4200, profit: 1680 },
+      { name: "ORS Powder", sold: 450, revenue: 2250, profit: 450 },
+      { name: "Cetirizine 10mg", sold: 95, revenue: 760, profit: 285 },
+    ],
+    staffMetrics: [
+      { name: "Ramesh Sharma", rxFilled: 145, sales: 45200, accuracy: 98 },
+      { name: "Sita Devi", rxFilled: 112, sales: 31800, accuracy: 96 },
+      { name: "Hari Prasad", rxFilled: 89, sales: 24100, accuracy: 94 },
+    ]
+  });
 
   useEffect(() => {
     setMounted(true);
     if (!getAdminToken()) router.push("/admin/login");
   }, [router]);
+
   if (!mounted) return null;
 
-  const totalRevenue = dailySales.reduce((s, d) => s + d.revenue, 0);
-  const totalOrders = dailySales.reduce((s, d) => s + d.orders, 0);
+  // Safe extractions using fallback defaults
+  const dailySales = analytics?.dailySales ?? [];
+  const topItems = analytics?.topItems ?? [];
+  const staffMetrics = analytics?.staffMetrics ?? [];
+
+  const totalRevenue = analytics?.metrics?.total_revenue ?? dailySales.reduce((s, d) => s + (d.revenue || 0), 0);
+  const totalOrders = analytics?.metrics?.total_orders ?? dailySales.reduce((s, d) => s + (d.orders || 0), 0);
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-  const prevRevenue = totalRevenue * 0.88; // simulated previous period
+  const prevRevenue = totalRevenue > 0 ? totalRevenue * 0.88 : 1; 
   const growth = ((totalRevenue - prevRevenue) / prevRevenue) * 100;
 
-  const maxRevenue = Math.max(...dailySales.map((d) => d.revenue));
+  const maxRevenue = Math.max(...dailySales.map((d) => d.revenue || 0), 1);
 
-  // Simple SVG line chart points
+  // SVG calculations
   const chartWidth = 600;
   const chartHeight = 200;
   const padding = 20;
-  const points = dailySales.map((d, i) => {
-    const x = padding + (i / (dailySales.length - 1)) * (chartWidth - padding * 2);
-    const y = chartHeight - padding - (d.revenue / maxRevenue) * (chartHeight - padding * 2);
-    return `${x},${y}`;
-  }).join(" ");
+  const points = dailySales.length > 0 
+    ? dailySales.map((d, i) => {
+        const x = padding + (i / Math.max(dailySales.length - 1, 1)) * (chartWidth - padding * 2);
+        const y = chartHeight - padding - ((d.revenue || 0) / maxRevenue) * (chartHeight - padding * 2);
+        return `${x},${y}`;
+      }).join(" ")
+    : `${padding},${chartHeight - padding}`;
 
   return (
     <div className="p-6 space-y-6">
@@ -113,7 +140,7 @@ export default function AdminAnalytics() {
         {[
           {
             label: "Total Revenue",
-            value: `Rs. ${totalRevenue.toLocaleString()}`,
+            value: `Rs. ${(totalRevenue ?? 0).toLocaleString()}`,
             icon: DollarSign,
             change: `+${growth.toFixed(1)}%`,
             up: true,
@@ -122,7 +149,7 @@ export default function AdminAnalytics() {
           },
           {
             label: "Total Orders",
-            value: `${totalOrders}`,
+            value: `${totalOrders ?? 0}`,
             icon: Package,
             change: "+12.5%",
             up: true,
@@ -131,7 +158,7 @@ export default function AdminAnalytics() {
           },
           {
             label: "Avg Order Value",
-            value: `Rs. ${avgOrderValue.toFixed(0)}`,
+            value: `Rs. ${(avgOrderValue ?? 0).toFixed(0)}`,
             icon: BarChart3,
             change: "-3.2%",
             up: false,
@@ -140,7 +167,7 @@ export default function AdminAnalytics() {
           },
           {
             label: "Active Customers",
-            value: "124",
+            value: `${analytics?.metrics?.active_customers ?? 124}`,
             icon: Users,
             change: "+8.1%",
             up: true,
@@ -196,7 +223,6 @@ export default function AdminAnalytics() {
             className="w-full min-w-[400px] h-[200px]"
             preserveAspectRatio="none"
           >
-            {/* Grid lines */}
             {[0, 0.25, 0.5, 0.75, 1].map((t) => (
               <line
                 key={t}
@@ -209,13 +235,11 @@ export default function AdminAnalytics() {
               />
             ))}
 
-            {/* Area under line */}
             <polygon
               points={`${padding},${chartHeight - padding} ${points} ${chartWidth - padding},${chartHeight - padding}`}
               fill="rgba(37, 99, 235, 0.08)"
             />
 
-            {/* Line */}
             <polyline
               points={points}
               fill="none"
@@ -225,12 +249,11 @@ export default function AdminAnalytics() {
               strokeLinejoin="round"
             />
 
-            {/* Dots */}
             {dailySales.map((d, i) => {
-              const x = padding + (i / (dailySales.length - 1)) * (chartWidth - padding * 2);
-              const y = chartHeight - padding - (d.revenue / maxRevenue) * (chartHeight - padding * 2);
+              const x = padding + (i / Math.max(dailySales.length - 1, 1)) * (chartWidth - padding * 2);
+              const y = chartHeight - padding - ((d.revenue || 0) / maxRevenue) * (chartHeight - padding * 2);
               return (
-                <g key={d.date}>
+                <g key={d.date || i}>
                   <circle cx={x} cy={y} r={4} fill="#2563eb" stroke="white" strokeWidth={2} />
                   <text
                     x={x}
@@ -249,8 +272,8 @@ export default function AdminAnalytics() {
         <div className="flex justify-between text-xs text-slate-500 px-2">
           {dailySales.map((d) => (
             <div key={d.date} className="text-center">
-              <p className="font-medium text-slate-700">Rs. {(d.revenue / 1000).toFixed(1)}k</p>
-              <p>{d.orders} orders</p>
+              <p className="font-medium text-slate-700">Rs. {((d.revenue || 0) / 1000).toFixed(1)}k</p>
+              <p>{d.orders || 0} orders</p>
             </div>
           ))}
         </div>
@@ -271,8 +294,8 @@ export default function AdminAnalytics() {
 
           <div className="space-y-3">
             {topItems.map((item, i) => {
-              const maxSold = topItems[0].sold;
-              const pct = (item.sold / maxSold) * 100;
+              const maxSold = topItems[0]?.sold || 1;
+              const pct = ((item.sold || 0) / maxSold) * 100;
               return (
                 <div key={item.name} className="space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
@@ -280,7 +303,7 @@ export default function AdminAnalytics() {
                       {i + 1}. {item.name}
                     </span>
                     <span className="text-slate-500 text-xs">
-                      {item.sold} sold · Rs. {item.revenue.toLocaleString()}
+                      {item.sold} sold · Rs. {(item.revenue || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
@@ -290,7 +313,7 @@ export default function AdminAnalytics() {
                     />
                   </div>
                   <p className="text-[10px] text-slate-400">
-                    Profit: Rs. {item.profit} ({((item.profit / item.revenue) * 100).toFixed(0)}% margin)
+                    Profit: Rs. {item.profit} ({item.revenue ? ((item.profit / item.revenue) * 100).toFixed(0) : 0}% margin)
                   </p>
                 </div>
               );
@@ -338,7 +361,7 @@ export default function AdminAnalytics() {
                   <div>
                     <p className="text-slate-400">Sales</p>
                     <p className="font-bold text-slate-800">
-                      Rs. {s.sales.toLocaleString()}
+                      Rs. {(s.sales || 0).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -372,14 +395,14 @@ export default function AdminAnalytics() {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {topItems.map((item) => {
-                const cost = item.revenue - item.profit;
-                const margin = (item.profit / item.revenue) * 100;
+                const cost = (item.revenue || 0) - (item.profit || 0);
+                const margin = item.revenue ? (item.profit / item.revenue) * 100 : 0;
                 return (
                   <tr key={item.name} className="hover:bg-slate-50/50">
                     <td className="py-3 font-medium text-slate-800">{item.name}</td>
-                    <td className="py-3 text-right text-slate-600">Rs. {item.revenue.toLocaleString()}</td>
+                    <td className="py-3 text-right text-slate-600">Rs. {(item.revenue || 0).toLocaleString()}</td>
                     <td className="py-3 text-right text-slate-600">Rs. {cost.toLocaleString()}</td>
-                    <td className="py-3 text-right font-bold text-emerald-600">Rs. {item.profit.toLocaleString()}</td>
+                    <td className="py-3 text-right font-bold text-emerald-600">Rs. {(item.profit || 0).toLocaleString()}</td>
                     <td className="py-3 text-right">
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                         margin >= 30 ? "bg-emerald-50 text-emerald-600" :

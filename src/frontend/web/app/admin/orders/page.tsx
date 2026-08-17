@@ -1,8 +1,8 @@
 "use client";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { fetchOrders, updateOrderStatus } from "@/lib/api";
-import { Package, Clock, CheckCircle, Truck, Home, ChevronDown, Search } from "lucide-react";
+import { apiFetch } from "@/lib/api";
+import { Package, Clock, Truck, Home, ChevronDown, Search } from "lucide-react";
 
 interface Order {
   id: number;
@@ -38,10 +38,12 @@ export default function AdminOrdersPage() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const data = await fetchOrders();
-      setOrders(data.orders || data || []);
+      // Calls the correct backend admin route
+      const data = await apiFetch("/orders/admin/all");
+      setOrders(Array.isArray(data) ? data : data.orders || []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load orders:", err);
+      toast.error("Failed to fetch orders");
     } finally {
       setLoading(false);
     }
@@ -50,9 +52,13 @@ export default function AdminOrdersPage() {
   const handleStatusChange = async (orderId: number, newStatus: string) => {
     try {
       setUpdating(orderId);
-      await updateOrderStatus(orderId, newStatus);
+      await apiFetch(`/orders/${orderId}/status?status=${newStatus}`, {
+        method: "PATCH",
+      });
+      toast.success("Order status updated");
       await loadOrders();
     } catch (err) {
+      console.error(err);
       toast.error("Failed to update status");
     } finally {
       setUpdating(null);
@@ -66,6 +72,7 @@ export default function AdminOrdersPage() {
   );
 
   const formatDate = (dateStr: string) => {
+    if (!dateStr) return "-";
     return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
