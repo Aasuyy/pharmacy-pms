@@ -1,87 +1,181 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getAdminToken } from "@/lib/api";
-import { TrendingUp, ShoppingBag, AlertTriangle, Calendar } from "lucide-react";
+import { Download, Calendar, TrendingUp, Package, ShoppingCart } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
-export default function AdminReports() {
-  const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); if (!getAdminToken()) router.push("/admin/login"); }, [router]);
-  if (!mounted) return null;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://pharmacy-pms.onrender.com";
 
-  const stats = [
-    { label: "Today Sales", value: "Rs. 12,450", change: "+12%", icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "Orders", value: "34", change: "+5", icon: ShoppingBag, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Low Stock Items", value: "5", change: "-2", icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
-    { label: "Expiring Soon", value: "3", change: "0", icon: Calendar, color: "text-amber-600", bg: "bg-amber-50" },
-  ];
+export default function ReportsPage() {
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [report, setReport] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  const topSelling = [
-    { name: "Paracetamol 500mg", qty: 120, revenue: 1800 },
-    { name: "Amoxicillin 500mg", qty: 85, revenue: 3825 },
-    { name: "Vitamin C 1000mg", qty: 64, revenue: 2240 },
-    { name: "ORS Powder", qty: 200, revenue: 6000 },
-  ];
+  const loadReport = async () => {
+    setLoading(true);
+    let url = `${API_URL}/orders/reports/sales`;
+    if (startDate && endDate) {
+      url += `?start_date=${startDate}&end_date=${endDate}`;
+    }
+    const res = await fetch(url);
+    const data = await res.json();
+    setReport(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadReport();
+  }, []);
+
+  const exportCSV = () => {
+    if (!report?.daily_breakdown?.length) return;
+    const headers = "Date,Orders,Revenue\n";
+    const rows = report.daily_breakdown.map((d: any) => 
+      `${d.date},${d.orders},${d.revenue}`
+    ).join("\n");
+    const blob = new Blob([headers + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sales-report-${startDate || "all"}.csv`;
+    a.click();
+  };
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Reports & Analytics</h1>
-        <p className="text-slate-400 text-sm mt-0.5">Business intelligence and trends</p>
+    <div className="p-8 max-w-6xl">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Sales Reports</h1>
+        <button
+          onClick={exportCSV}
+          disabled={!report?.daily_breakdown?.length}
+          className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition disabled:opacity-50"
+        >
+          <Download size={16} />
+          Export CSV
+        </button>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mb-3`}>
-              <s.icon size={16} className={s.color} />
-            </div>
-            <p className="text-xs text-slate-400 mb-1">{s.label}</p>
-            <p className="text-xl font-bold text-slate-900">{s.value}</p>
-            <p className={`text-xs font-medium mt-1 ${s.change.startsWith("+") ? "text-emerald-600" : s.change.startsWith("-") ? "text-red-600" : "text-slate-400"}`}>{s.change} vs yesterday</p>
-          </div>
-        ))}
-      </div>
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-slate-800 mb-4">Top Selling Medicines</h2>
-          <div className="space-y-3">
-            {topSelling.map((m, i) => (
-              <div key={m.name} className="flex items-center gap-3">
-                <span className="text-xs font-bold text-slate-400 w-4">{i + 1}</span>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-slate-800">{m.name}</span>
-                    <span className="text-xs text-slate-500">Rs. {m.revenue}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full rounded-full bg-blue-500" style={{ width: `${(m.qty / 200) * 100}%` }} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+
+      {/* Date Filter */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 flex items-end gap-4">
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">Start Date</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-slate-200"
+          />
         </div>
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-slate-800 mb-4">Inventory Alerts</h2>
-          <div className="space-y-3">
-            {[
-              { name: "Vitamin C 1000mg", issue: "Low stock (12 remaining)", severity: "warning" },
-              { name: "Insulin Glargine", issue: "Low stock (5 remaining)", severity: "critical" },
-              { name: "Cetirizine 10mg", issue: "Low stock (8 remaining)", severity: "warning" },
-              { name: "Insulin Glargine", issue: "Expiring 2026-10-01", severity: "warning" },
-            ].map((a, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <div className={`w-2 h-2 rounded-full mt-1.5 ${a.severity === "critical" ? "bg-red-500" : "bg-amber-500"}`} />
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">End Date</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-slate-200"
+          />
+        </div>
+        <button
+          onClick={loadReport}
+          disabled={loading}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
+        >
+          {loading ? "Loading..." : "Generate"}
+        </button>
+      </div>
+
+      {report && (
+        <>
+          {/* KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-800">{a.name}</p>
-                  <p className="text-xs text-slate-400">{a.issue}</p>
+                  <p className="text-sm text-slate-500">Total Orders</p>
+                  <p className="text-2xl font-bold text-slate-900">{report.total_orders || 0}</p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
+                  <ShoppingCart size={20} />
                 </div>
               </div>
-            ))}
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Total Revenue</p>
+                  <p className="text-2xl font-bold text-slate-900">Rs. {(report.total_revenue || 0).toLocaleString()}</p>
+                </div>
+                <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
+                  <TrendingUp size={20} />
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Avg Order Value</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    Rs. {report.total_orders ? Math.round(report.total_revenue / report.total_orders).toLocaleString() : 0}
+                  </p>
+                </div>
+                <div className="p-3 bg-violet-50 rounded-lg text-violet-600">
+                  <Calendar size={20} />
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Daily Chart */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Daily Revenue</h2>
+              <div className="h-64">
+                {report.daily_breakdown?.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[...report.daily_breakdown].reverse()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "12px" }} />
+                      <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-slate-400 text-sm">No data</div>
+                )}
+              </div>
+            </div>
+
+            {/* Top Drugs */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <Package size={18} />
+                Top Selling Drugs
+              </h2>
+              <div className="space-y-3">
+                {report.top_drugs?.length > 0 ? (
+                  report.top_drugs.map((drug: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                          {i + 1}
+                        </span>
+                        <span className="font-medium text-slate-900">{drug.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">{drug.total_qty} sold</p>
+                        <p className="text-xs text-slate-500">Rs. {Number(drug.total_revenue).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-slate-400 text-sm">No sales data</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
