@@ -441,3 +441,33 @@ def pos_checkout(req: CheckoutRequest):
     finally:
         conn.close()
 
+@router.get("/alerts")
+def get_inventory_alerts():
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        
+        # Low Stock Query (< 10 units)
+        cur.execute("SELECT id, name, brand, stock_quantity, price FROM drugs WHERE stock_quantity < 10 ORDER BY stock_quantity ASC")
+        cols = [desc[0] for desc in cur.description]
+        low_stock = [dict(zip(cols, row)) for row in cur.fetchall()]
+        
+        # Expiring Soon Query (Within 30 days)
+        try:
+            if db_type == "postgres":
+                cur.execute("SELECT id, name, brand, expiry_date, stock_quantity FROM drugs WHERE expiry_date <= CURRENT_DATE + INTERVAL '30 days' ORDER BY expiry_date ASC")
+            else:
+                cur.execute("SELECT id, name, brand, expiry_date, stock_quantity FROM drugs WHERE expiry_date <= date('now', '+30 days') ORDER BY expiry_date ASC")
+            cols_exp = [desc[0] for desc in cur.description]
+            expiring_soon = [dict(zip(cols_exp, row)) for row in cur.fetchall()]
+        except Exception:
+            expiring_soon = []
+
+        return {
+            "low_stock": low_stock,
+            "expiring_soon": expiring_soon,
+            "total_alerts": len(low_stock) + len(expiring_soon)
+        }
+    finally:
+        conn.close()
+
