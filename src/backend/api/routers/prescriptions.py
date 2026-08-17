@@ -44,7 +44,7 @@ def batch_import_drugs(drugs: list[dict]):
         
         for drug in drugs:
             name = drug.get("name")
-            stock = drug.get("stock_quantity", 0)
+            stock = drug.get("stock", drug.get("stock_quantity", 0))
             price = drug.get("price", 0.0)
             expiry = drug.get("expiry_date", None)
 
@@ -53,12 +53,12 @@ def batch_import_drugs(drugs: list[dict]):
 
             if db_type == "postgres":
                 cur.execute(
-                    "INSERT INTO drugs (name, stock_quantity, price, expiry_date) VALUES (%s, %s, %s, %s)",
+                    "INSERT INTO drugs (name, stock, price, expiry_date) VALUES (%s, %s, %s, %s)",
                     (name, stock, price, expiry)
                 )
             else:
                 cur.execute(
-                    "INSERT INTO drugs (name, stock_quantity, price, expiry_date) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO drugs (name, stock, price, expiry_date) VALUES (?, ?, ?, ?)",
                     (name, stock, price, expiry)
                 )
             inserted_count += 1
