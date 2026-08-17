@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from src.backend.api.routers import customers, shop, cart, orders, prescriptions
+from src.backend.api.routers import customers, shop, cart, orders, prescriptions, staff, staff
 from src.backend.api.routers import auth
 from src.backend.api.deps import get_db, init_tables, seed_drugs, seed_admins
 
@@ -49,6 +49,7 @@ app.include_router(shop.router, prefix="/shop", tags=["Shop"])
 app.include_router(cart.router, prefix="/cart", tags=["Cart"])
 app.include_router(orders.router, prefix="/orders", tags=["Orders"])
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(staff.router, prefix="/staff", tags=["Staff"])
 app.include_router(prescriptions.router, prefix="/prescriptions", tags=["Prescriptions"])
 
 @app.websocket("/ws/alerts")
