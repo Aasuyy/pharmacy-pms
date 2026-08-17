@@ -18,32 +18,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const { admin, logout } = useAdminAuthStore();
 
-  useEffect(() => {
-    if (!admin && pathname !== "/admin/login") {
-      router.push("/admin/login");
-    }
-  }, [admin, pathname, router]);
-
-  if (!admin) return null;
-
-  // Don't show sidebar on login page
-  if (pathname === "/admin/login") {
-    // Login page must NOT be wrapped in admin shell
+  // 1. Login page must render WITHOUT the admin shell and WITHOUT auth check
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
-  // Prevent crash during logout while redirecting
+  // 2. All other /admin/* pages require auth — redirect if missing
+  useEffect(() => {
+    if (!admin) {
+      router.push("/admin/login");
+    }
+  }, [admin, router]);
+
+  // 3. Don't render admin shell while redirecting
   if (!admin) {
     return <div className="min-h-screen bg-slate-50" />;
   }
 
-  return (
-      <div className="min-h-screen bg-slate-50">
-        {children}
-      </div>
-    );
-  }
+  const handleLogout = () => {
+    logout();
+    window.location.href = "/admin/login"; // hard reload = no blank screen
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -81,7 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <p className="text-xs text-slate-500">{admin.email}</p>
           </div>
           <button
-            onClick={() => { logout(); router.push("/admin/login"); }}
+            onClick={handleLogout}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <LogOut size={16} />
