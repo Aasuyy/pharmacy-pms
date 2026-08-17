@@ -17,12 +17,10 @@ def get_db():
 
 @router.post("/ocr/parse")
 async def parse_prescription_ocr(file: UploadFile = File(...)):
-    # Simulated OCR extraction pipeline for scanned doctor notes / Rx slips
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Empty image file uploaded")
 
-    # Mock structured OCR result
     return {
         "status": "success",
         "filename": file.filename,
@@ -46,7 +44,6 @@ def batch_import_drugs(drugs: list[dict]):
         
         for drug in drugs:
             name = drug.get("name")
-            brand = drug.get("brand", "Generic")
             stock = drug.get("stock_quantity", 0)
             price = drug.get("price", 0.0)
             expiry = drug.get("expiry_date", None)
@@ -56,13 +53,13 @@ def batch_import_drugs(drugs: list[dict]):
 
             if db_type == "postgres":
                 cur.execute(
-                    "INSERT INTO drugs (name, brand, stock_quantity, price, expiry_date) VALUES (%s, %s, %s, %s, %s)",
-                    (name, brand, stock, price, expiry)
+                    "INSERT INTO drugs (name, stock_quantity, price, expiry_date) VALUES (%s, %s, %s, %s)",
+                    (name, stock, price, expiry)
                 )
             else:
                 cur.execute(
-                    "INSERT INTO drugs (name, brand, stock_quantity, price, expiry_date) VALUES (?, ?, ?, ?, ?)",
-                    (name, brand, stock, price, expiry)
+                    "INSERT INTO drugs (name, stock_quantity, price, expiry_date) VALUES (?, ?, ?, ?)",
+                    (name, stock, price, expiry)
                 )
             inserted_count += 1
 
