@@ -19,14 +19,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { admin, logout } = useAdminAuthStore();
 
   useEffect(() => {
-    if (!admin) router.push("/admin/login");
-  }, [admin, router]);
+    if (!admin && pathname !== "/admin/login") {
+      router.push("/admin/login");
+    }
+  }, [admin, pathname, router]);
 
   if (!admin) return null;
 
   // Don't show sidebar on login page
   if (pathname === "/admin/login") {
-    return (
+    // Login page must NOT be wrapped in admin shell
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
+
+  // Prevent crash during logout while redirecting
+  if (!admin) {
+    return <div className="min-h-screen bg-slate-50" />;
+  }
+
+  return (
       <div className="min-h-screen bg-slate-50">
         {children}
       </div>
