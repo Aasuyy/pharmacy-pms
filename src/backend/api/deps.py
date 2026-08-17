@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from src.backend.db.session import SessionLocal
 
@@ -15,6 +16,14 @@ DB_PATH = os.getenv("DB_PATH", "pharmacy.db")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    role: str
+
+    class Config:
+        from_attributes = True
 
 class ConnectionManager:
     def __init__(self):
