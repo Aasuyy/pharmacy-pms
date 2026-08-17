@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Phone, Mail, MapPin } from "lucide-react";
+import { Plus, Phone, Mail, MapPin } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://pharmacy-pms.onrender.com";
 
@@ -42,10 +42,7 @@ export default function SuppliersPage() {
     <div className="p-8 max-w-6xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Suppliers</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-        >
+        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
           <Plus size={16} />
           Add Supplier
         </button>
@@ -83,7 +80,7 @@ export default function SuppliersPage() {
           <div className="bg-white rounded-xl max-w-md w-full p-6">
             <h2 className="text-lg font-bold mb-4">Add Supplier</h2>
             <div className="space-y-3">
-              <input placeholder="Name" className="w-full px-3 py-2 rounded-lg border" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+              <input placeholder="Name *" className="w-full px-3 py-2 rounded-lg border" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
               <input placeholder="Phone" className="w-full px-3 py-2 rounded-lg border" value={form.contact} onChange={e => setForm({...form, contact: e.target.value})} />
               <input placeholder="Email" className="w-full px-3 py-2 rounded-lg border" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
               <input placeholder="Address" className="w-full px-3 py-2 rounded-lg border" value={form.address} onChange={e => setForm({...form, address: e.target.value})} />
