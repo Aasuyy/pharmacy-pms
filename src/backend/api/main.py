@@ -1,8 +1,6 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from src.backend.api.routers.auth import router as auth_router
 
-# Import analytics router if present
 try:
     from src.backend.api.routers.analytics import router as analytics_router
 except ImportError:
@@ -10,15 +8,7 @@ except ImportError:
 
 app = FastAPI(title="Pharmacy PMS API")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     return {"status": "ok", "message": "Pharmacy API is running"}
 
