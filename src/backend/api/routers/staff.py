@@ -82,3 +82,36 @@ def add_stock_count(data: dict):
         return {"message": "Stock count recorded", "discrepancy": disc}
     finally:
         conn.close()
+
+@router.post("/login")
+def staff_login(data: dict):
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        password_hash = hashlib.sha256(data.get("password", "").encode()).hexdigest()
+        cur.execute(
+            f"SELECT id, full_name, email, role FROM staff_members WHERE email = {ph} AND password_hash = {ph}",
+            (data.get("email"), password_hash)
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        staff = dict(row)
+        return {
+            "message": "Staff login successful",
+            "token": "staff-token",
+            "staff": {
+                "id": staff["id"],
+                "email": staff["email"],
+                "full_name": staff["full_name"],
+                "role": staff["role"]
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
