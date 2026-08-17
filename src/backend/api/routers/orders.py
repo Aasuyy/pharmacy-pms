@@ -452,3 +452,54 @@ def checkout(data: dict):
         if conn:
             conn.close()
 
+
+@router.get("/reports/sales")
+def sales_report(start_date: str = None, end_date: str = None):
+    """Get sales report with date filtering"""
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        base_where = ""
+        params = []
+        if start_date and end_date:
+            if db_type == "postgres":
+                base_where = " WHERE created_at BETWEEN %s AND %s"
+            else:
+                base_where = " WHERE created_at BETWEEN ? AND ?"
+            params = [start_date, end_date]
+        
+        cur.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0) FROM orders" + base_where, params)
+        total_orders, total_revenue = cur.fetchone()
+        
+        if db_type == "postgres":
+            sql = "SELECT DATE(created_at) as date, COUNT(*) as orders, COALESCE(SUM(total_amount),0) as revenue FROM orders" + base_where + " GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30"
+        else:
+            sql = "SELECT date(created_at) as date, COUNT(*) as orders, COALESCE(SUM(total_amount),0) as revenue FROM orders" + base_where + " GROUP BY date(created_at) ORDER BY date DESC LIMIT 30"
+        cur.execute(sql, params)
+        
+        rows = cur.fetchall()
+        if rows and hasattr(rows[0], "keys"):
+            daily = [dict(row) for row in rows]
+        else:
+            cols = [desc[0] for desc in cur.description]
+            daily = [dict(zip(cols, row)) for row in rows]
+        
+        where_for_items = base_where.replace("created_at", "o.created_at") if base_where else ""
+        sql2 = "SELECT d.name, SUM(oi.quantity) as total_qty, SUM(oi.quantity * oi.price) as total_revenue FROM order_items oi JOIN drugs d ON oi.drug_id = d.id JOIN orders o ON oi.order_id = o.id" + where_for_items + " GROUP BY d.id, d.name ORDER BY total_qty DESC LIMIT 10"
+        cur.execute(sql2, params)
+        
+        rows = cur.fetchall()
+        if rows and hasattr(rows[0], "keys"):
+            top_drugs = [dict(row) for row in rows]
+        else:
+            cols = [desc[0] for desc in cur.description]
+            top_drugs = [dict(zip(cols, row)) for row in rows]
+        
+        return {
+            "total_orders": total_orders,
+            "total_revenue": float(total_revenue),
+            "daily_breakdown": daily,
+            "top_drugs": top_drugs
+        }
+    finally:
+        conn.close()
