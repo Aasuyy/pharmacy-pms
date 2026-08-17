@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 import os
 import sqlite3
 import psycopg2
@@ -21,27 +21,48 @@ def get_inventory_alerts():
     try:
         cur = conn.cursor()
         
-        # Low Stock Query (< 10 units)
-        cur.execute("SELECT id, name, brand, stock_quantity, price FROM drugs WHERE stock_quantity < 10 ORDER BY stock_quantity ASC")
-        cols = [desc[0] for desc in cur.description]
-        low_stock = [dict(zip(cols, row)) for row in cur.fetchall()]
-        
-        # Expiring Soon Query (Within 30 days)
+        # 1. Fetch Low Stock (< 10 units)
+        low_stock = []
+        try:
+            cur.execute("SELECT id, name, COALESCE(brand, ''), stock_quantity, price FROM drugs WHERE stock_quantity < 10 ORDER BY stock_quantity ASC")
+            rows = cur.fetchall()
+            for r in rows:
+                low_stock.append({
+                    "id": r[0],
+                    "name": r[1],
+                    "brand": r[2],
+                    "stock_quantity": r[3],
+                    "price": float(r[4]) if r[4] is not None else 0.0
+                })
+        except Exception as e:
+            print(f"Low stock error: {e}")
+
+        # 2. Fetch Expiring Soon (Within 30 days)
+        expiring_soon = []
         try:
             if db_type == "postgres":
-                cur.execute("SELECT id, name, brand, expiry_date, stock_quantity FROM drugs WHERE expiry_date <= CURRENT_DATE + INTERVAL '30 days' ORDER BY expiry_date ASC")
+                cur.execute("SELECT id, name, COALESCE(brand, ''), expiry_date, stock_quantity FROM drugs WHERE expiry_date <= CURRENT_DATE + INTERVAL '30 days' ORDER BY expiry_date ASC")
             else:
-                cur.execute("SELECT id, name, brand, expiry_date, stock_quantity FROM drugs WHERE expiry_date <= date('now', '+30 days') ORDER BY expiry_date ASC")
-            cols_exp = [desc[0] for desc in cur.description]
-            expiring_soon = [dict(zip(cols_exp, row)) for row in cur.fetchall()]
-        except Exception:
-            expiring_soon = []
+                cur.execute("SELECT id, name, COALESCE(brand, ''), expiry_date, stock_quantity FROM drugs WHERE expiry_date <= date('now', '+30 days') ORDER BY expiry_date ASC")
+            rows_exp = cur.fetchall()
+            for r in rows_exp:
+                expiring_soon.append({
+                    "id": r[0],
+                    "name": r[1],
+                    "brand": r[2],
+                    "expiry_date": str(r[3]) if r[3] else None,
+                    "stock_quantity": r[4]
+                })
+        except Exception as e:
+            print(f"Expiry error: {e}")
 
         return {
             "low_stock": low_stock,
             "expiring_soon": expiring_soon,
             "total_alerts": len(low_stock) + len(expiring_soon)
         }
+    except Exception as general_err:
+        raise HTTPException(status_code=500, detail=str(general_err))
     finally:
         conn.close()
 
@@ -56,7 +77,6 @@ def pos_checkout(payload: dict):
         if not items:
             raise HTTPException(status_code=400, detail="Cart is empty")
 
-        # Create Order
         if db_type == "postgres":
             cur.execute("INSERT INTO orders (total_amount, status) VALUES (%s, 'completed') RETURNING id", (total,))
             order_id = cur.fetchone()[0]
@@ -64,7 +84,6 @@ def pos_checkout(payload: dict):
             cur.execute("INSERT INTO orders (total_amount, status) VALUES (?, 'completed')", (total,))
             order_id = cur.lastrowid
 
-        # Deduct stock & create items
         for item in items:
             drug_id = item["id"]
             qty = item["quantity"]
