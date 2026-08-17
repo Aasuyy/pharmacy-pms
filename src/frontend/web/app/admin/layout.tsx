@@ -1,5 +1,4 @@
 "use client";
-import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAdminAuthStore } from "@/store/adminAuthStore";
 import Link from "next/link";
