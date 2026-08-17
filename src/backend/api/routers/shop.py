@@ -349,3 +349,32 @@ def create_po(data: dict):
     finally:
         conn.close()
 
+@router.get("/expiring")
+def get_expiring(days: int = 30):
+    """Get drugs expiring within N days"""
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        
+        if db_type == "postgres":
+            cur.execute(
+                "SELECT id, name, stock_quantity, expiry_date FROM drugs WHERE expiry_date IS NOT NULL AND expiry_date <= CURRENT_DATE + INTERVAL '%s days' ORDER BY expiry_date",
+                (days,)
+            )
+        else:
+            cur.execute(
+                "SELECT id, name, stock_quantity, expiry_date FROM drugs WHERE expiry_date IS NOT NULL AND expiry_date <= date('now', ?) ORDER BY expiry_date",
+                (f'+{days} days',)
+            )
+        
+        rows = cur.fetchall()
+        if rows and hasattr(rows[0], "keys"):
+            return [dict(row) for row in rows]
+        cols = [desc[0] for desc in cur.description]
+        return [dict(zip(cols, row)) for row in rows]
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
