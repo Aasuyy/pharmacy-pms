@@ -39,6 +39,68 @@ def init_tables(conn, db_type: str):
         cur.execute("CREATE TABLE IF NOT EXISTS order_items (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE, drug_id INTEGER REFERENCES drugs(id), quantity INTEGER DEFAULT 1, price REAL DEFAULT 0)")
         cur.execute("CREATE TABLE IF NOT EXISTS admins (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, full_name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         cur.execute("CREATE TABLE IF NOT EXISTS prescriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_id INTEGER REFERENCES customers(id), image_url TEXT, status TEXT DEFAULT 'pending', notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS staff_members (
+            id SERIAL PRIMARY KEY,
+            full_name TEXT NOT NULL,
+            email TEXT UNIQUE,
+            phone TEXT,
+            role TEXT DEFAULT 'staff',
+            password_hash TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS shifts (
+            id SERIAL PRIMARY KEY,
+            staff_id INTEGER,
+            start_time TIMESTAMP,
+            end_time TIMESTAMP,
+            shift_date DATE DEFAULT CURRENT_DATE,
+            status TEXT DEFAULT 'active'
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS stock_counts (
+            id SERIAL PRIMARY KEY,
+            drug_id INTEGER,
+            counted_qty INTEGER NOT NULL,
+            expected_qty INTEGER,
+            discrepancy INTEGER,
+            counted_by TEXT,
+            counted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS suppliers (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            contact TEXT,
+            email TEXT,
+            address TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS purchase_orders (
+            id SERIAL PRIMARY KEY,
+            supplier_id INTEGER,
+            status TEXT DEFAULT 'pending',
+            total_amount REAL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS purchase_order_items (
+            id SERIAL PRIMARY KEY,
+            po_id INTEGER,
+            drug_id INTEGER,
+            quantity INTEGER NOT NULL,
+            price REAL NOT NULL
+        )
+    """)
+
     conn.commit()
     cur.close()
 

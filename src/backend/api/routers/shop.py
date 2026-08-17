@@ -290,3 +290,62 @@ def delete_drug(drug_id: int):
                 conn.close()
             except:
                 pass
+
+@router.get("/suppliers")
+def list_suppliers():
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM suppliers ORDER BY id DESC")
+        cols = [desc[0] for desc in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+@router.post("/suppliers")
+def add_supplier(data: dict):
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        cur.execute(
+            f"INSERT INTO suppliers (name, contact, email, address) VALUES ({ph}, {ph}, {ph}, {ph})",
+            (data["name"], data.get("contact"), data.get("email"), data.get("address"))
+        )
+        conn.commit()
+        return {"message": "Supplier added"}
+    finally:
+        conn.close()
+
+@router.get("/purchase-orders")
+def list_pos():
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT p.*, s.name as supplier_name FROM purchase_orders p LEFT JOIN suppliers s ON p.supplier_id = s.id ORDER BY p.id DESC")
+        cols = [desc[0] for desc in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+@router.post("/purchase-orders")
+def create_po(data: dict):
+    conn, db_type = get_db()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if db_type == "postgres" else "?"
+        items = data.get("items", [])
+        total = sum(i["quantity"] * i["price"] for i in items)
+        if db_type == "postgres":
+            cur.execute("INSERT INTO purchase_orders (supplier_id, status, total_amount) VALUES (%s, %s, %s) RETURNING id", (data["supplier_id"], "pending", total))
+            po_id = cur.fetchone()[0]
+        else:
+            cur.execute("INSERT INTO purchase_orders (supplier_id, status, total_amount) VALUES (?, ?, ?)", (data["supplier_id"], "pending", total))
+            po_id = cur.lastrowid
+        for item in items:
+            cur.execute(f"INSERT INTO purchase_order_items (po_id, drug_id, quantity, price) VALUES ({ph}, {ph}, {ph}, {ph})", (po_id, item["drug_id"], item["quantity"], item["price"]))
+        conn.commit()
+        return {"message": "Purchase order created", "po_id": po_id}
+    finally:
+        conn.close()
+
