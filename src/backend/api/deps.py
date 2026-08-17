@@ -1,6 +1,6 @@
 import os
-from typing import Generator, Optional
-from fastapi import Depends, HTTPException, status
+from typing import Generator, Optional, List, Callable
+from fastapi import Depends, HTTPException, status, WebSocket
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -11,9 +11,28 @@ from src.backend.db.session import SessionLocal
 SECRET_KEY = os.getenv("SECRET_KEY", "pharmapro-2026-secret-key-change-me-later")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+DB_PATH = os.getenv("DB_PATH", "pharmacy.db")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.send_text(message)
+
+ws_manager = ConnectionManager()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -49,3 +68,14 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
     if user is None:
         raise credentials_exception
     return user
+
+def require_role(allowed_roles: List[str]) -> Callable:
+    def role_checker(current_user=Depends(get_current_user)):
+        user_role = getattr(current_user, "role", None)
+        if user_role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Operation not permitted for this role",
+            )
+        return current_user
+    return role_checker
