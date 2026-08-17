@@ -378,3 +378,66 @@ def get_expiring(days: int = 30):
     finally:
         conn.close()
 
+from pydantic import BaseModel
+from typing import List
+
+class CartItem(BaseModel):
+    drug_id: int
+    quantity: int
+    unit_price: float
+
+class CheckoutRequest(BaseModel):
+    items: List[CartItem]
+    payment_method: str = "cash"
+    customer_name: str = "Walk-in Customer"
+
+@router.post("/pos/checkout")
+def pos_checkout(req: CheckoutRequest):
+    conn, db_type = get_db()
+    ph = "%s" if db_type == "postgres" else "?"
+    try:
+        cur = conn.cursor()
+        total_amount = sum(item.quantity * item.unit_price for item in req.items)
+        
+        # 1. Create Order
+        if db_type == "postgres":
+            cur.execute(
+                "INSERT INTO orders (total_amount, status, created_at) VALUES (%s, %s, NOW()) RETURNING id",
+                (total_amount, "completed")
+            )
+            order_id = cur.fetchone()[0]
+        else:
+            cur.execute(
+                "INSERT INTO orders (total_amount, status, created_at) VALUES (?, ?, datetime('now'))",
+                (total_amount, "completed")
+            )
+            order_id = cur.lastrowid
+        
+        # 2. Process Items & Deduct Stock
+        for item in req.items:
+            # Check current stock
+            cur.execute(f"SELECT stock_quantity FROM drugs WHERE id = {ph}", (item.drug_id,))
+            row = cur.fetchone()
+            if row and row[0] >= item.quantity:
+                # Deduct stock
+                cur.execute(
+                    f"UPDATE drugs SET stock_quantity = stock_quantity - {ph} WHERE id = {ph}",
+                    (item.quantity, item.drug_id)
+                )
+            else:
+                conn.rollback()
+                return {"error": f"Insufficient stock for Drug ID {item.drug_id}"}, 400
+        
+        conn.commit()
+        return {
+            "success": True, 
+            "order_id": order_id, 
+            "total_amount": total_amount,
+            "message": "Transaction completed successfully"
+        }
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}, 500
+    finally:
+        conn.close()
+
