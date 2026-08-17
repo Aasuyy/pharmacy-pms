@@ -1,22 +1,24 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.backend.api.router import api_router  # Adjust router import path if needed
+from src.backend.api.router import api_router  # Adjust if auth router is separate
 
 app = FastAPI(title="Pharmacy PMS API")
 
-# Configure CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows local dev (localhost:8000) and production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Root endpoint for health checks
 @app.get("/")
 def read_root():
     return {"status": "ok", "message": "Pharmacy API is running"}
 
-# Include all API routes (auth, admin, inventory, etc.)
+# Include router directly
 app.include_router(api_router)
+
+# If auth routes are in a separate module without an '/auth' prefix, mount them explicitly:
+# from src.backend.api.routes.auth import router as auth_router
+# app.include_router(auth_router, prefix="/auth", tags=["auth"])
