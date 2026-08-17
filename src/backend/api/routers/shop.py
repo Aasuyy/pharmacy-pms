@@ -244,6 +244,7 @@ def debug_schema():
 
 
 
+
 @router.delete("/drugs/{drug_id}")
 def delete_drug(drug_id: int):
     import traceback
@@ -253,29 +254,23 @@ def delete_drug(drug_id: int):
         cur = conn.cursor()
         ph = "%s" if db_type == "postgres" else "?"
         
-        # Check drug exists
         cur.execute(f"SELECT id FROM drugs WHERE id = {ph}", (drug_id,))
         if not cur.fetchone():
             return {"error": "Drug not found"}
         
-        # Auto-find ALL linked tables and delete their rows first
-        if db_type == "postgres":
-            cur.execute("""
-                SELECT kcu.table_name, kcu.column_name
-                FROM information_schema.table_constraints tc
-                JOIN information_schema.key_column_usage kcu
-                    ON tc.constraint_name = kcu.constraint_name
-                JOIN information_schema.constraint_column_usage ccu
-                    ON tc.constraint_name = ccu.constraint_name
-                WHERE tc.constraint_type = 'FOREIGN KEY'
-                AND ccu.table_name = 'drugs'
-                AND ccu.column_name = 'id'
-            """)
-            linked = cur.fetchall()
-            for table_name, col_name in linked:
-                cur.execute(f"DELETE FROM {table_name} WHERE {col_name} = {ph}", (drug_id,))
+        # Delete from order_items first (the known FK-linked table)
+        try:
+            cur.execute(f"DELETE FROM order_items WHERE drug_id = {ph}", (drug_id,))
+        except Exception:
+            pass
         
-        # Now safe to delete drug
+        # Try other possible linked tables (ignore if missing)
+        for table in ["prescription_items", "stock_logs", "inventory_transactions"]:
+            try:
+                cur.execute(f"DELETE FROM {table} WHERE drug_id = {ph}", (drug_id,))
+            except Exception:
+                pass
+        
         cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
         conn.commit()
         return {"message": "Drug deleted"}
