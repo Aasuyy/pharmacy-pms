@@ -1,148 +1,124 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getAdminToken } from "@/lib/api";
-import { useToast } from "@/components/Toast";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Package } from "lucide-react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://pharmacy-pms.onrender.com";
 
 interface PO {
-  id: string;
-  supplier: string;
-  items: string;
-  total: number;
-  status: "draft" | "sent" | "received";
-  date: string;
+  id: number;
+  supplier_name: string;
+  status: string;
+  total_amount: number;
+  created_at: string;
 }
 
-export default function AdminPurchaseOrders() {
-  const router = useRouter();
-  const { toast, ToastContainer } = useToast();
-  const [mounted, setMounted] = useState(false);
-  const [search, setSearch] = useState("");
+export default function POPage() {
+  const [pos, setPos] = useState<PO[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [drugs, setDrugs] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ supplier: "", items: "", total: "" });
-  const [pos, setPos] = useState<PO[]>([
-    { id: "PO-001", supplier: "Cipla Nepal", items: "Paracetamol 500mg x100", total: 1500, status: "sent", date: "2026-08-12" },
-    { id: "PO-002", supplier: "Sun Pharma", items: "Amoxicillin 500mg x50", total: 2250, status: "received", date: "2026-08-10" },
-  ]);
+  const [supplierId, setSupplierId] = useState("");
+  const [items, setItems] = useState<any[]>([]);
+
+  const load = () => {
+    fetch(`${API_URL}/shop/purchase-orders`)
+      .then(r => r.json())
+      .then(data => setPos(Array.isArray(data) ? data : []));
+  };
 
   useEffect(() => {
-    setMounted(true);
-    if (!getAdminToken()) router.push("/admin/login");
-  }, [router]);
-  if (!mounted) return null;
+    load();
+    fetch(`${API_URL}/shop/suppliers`).then(r => r.json()).then(d => setSuppliers(Array.isArray(d) ? d : []));
+    fetch(`${API_URL}/shop/drugs?t=${Date.now()}`).then(r => r.json()).then(d => setDrugs(Array.isArray(d) ? d : []));
+  }, []);
 
-  const save = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.supplier || !form.items || !form.total) {
-      toast("All fields required", "error");
-      return;
-    }
-    setPos([...pos, {
-      id: "PO-" + Date.now(),
-      supplier: form.supplier,
-      items: form.items,
-      total: Number(form.total),
-      status: "draft",
-      date: new Date().toISOString().split("T")[0]
-    }]);
+  const addItem = () => setItems([...items, { drug_id: "", quantity: 1, price: 0 }]);
+
+  const save = async () => {
+    if (!supplierId || items.length === 0) return alert("Select supplier and add items");
+    await fetch(`${API_URL}/shop/purchase-orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ supplier_id: Number(supplierId), items })
+    });
     setShowModal(false);
-    setForm({ supplier: "", items: "", total: "" });
-    toast("Purchase order created", "success");
-  };
-
-  const updateStatus = (id: string, status: PO["status"]) => {
-    setPos(pos.map(p => p.id === id ? { ...p, status } : p));
-    toast("Status updated", "success");
-  };
-
-  const filtered = pos.filter(p =>
-    p.supplier.toLowerCase().includes(search.toLowerCase()) ||
-    p.id.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const statusBadge = (s: string) => {
-    if (s === "received") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    if (s === "sent") return "bg-blue-50 text-blue-700 border-blue-200";
-    return "bg-slate-50 text-slate-600 border-slate-200";
+    setItems([]);
+    load();
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <ToastContainer />
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Purchase Orders</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Manage supplier orders and receipts</p>
-        </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
-          <Plus size={16} /> New PO
+    <div className="p-8 max-w-6xl">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Purchase Orders</h1>
+        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+          <Plus size={16} />
+          Create PO
         </button>
       </div>
 
-      <div className="relative max-w-md">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input type="text" placeholder="Search POs..." value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
-      </div>
-
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/50">
-              <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase">PO ID</th>
-              <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Supplier</th>
-              <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Items</th>
-              <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Total</th>
-              <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Status</th>
-              <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Actions</th>
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="text-left px-4 py-3 font-medium text-slate-700">PO #</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-700">Supplier</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-700">Status</th>
+              <th className="text-left px-4 py-3 font-medium text-slate-700">Total</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
-            {filtered.map((p) => (
-              <tr key={p.id} className="hover:bg-slate-50/50 transition-all">
-                <td className="px-6 py-4 text-sm font-medium text-slate-800">{p.id}</td>
-                <td className="px-6 py-4 text-sm text-slate-700">{p.supplier}</td>
-                <td className="px-6 py-4 text-sm text-slate-600 max-w-xs truncate">{p.items}</td>
-                <td className="px-6 py-4 text-sm font-bold text-slate-800">Rs. {p.total}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2.5 py-1 rounded-lg border text-xs font-medium capitalize ${statusBadge(p.status)}`}>{p.status}</span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-end gap-2">
-                    {p.status === "draft" && (
-                      <button onClick={() => updateStatus(p.id, "sent")} className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium hover:bg-blue-100 transition-all">Send</button>
-                    )}
-                    {p.status === "sent" && (
-                      <button onClick={() => updateStatus(p.id, "received")} className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100 transition-all">Receive</button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">No purchase orders found</td></tr>
+          <tbody>
+            {pos.length === 0 ? (
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">No purchase orders</td></tr>
+            ) : (
+              pos.map(p => (
+                <tr key={p.id} className="border-b border-slate-100 last:border-0">
+                  <td className="px-4 py-3 font-medium">#{p.id}</td>
+                  <td className="px-4 py-3 text-slate-600">{p.supplier_name || "-"}</td>
+                  <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">{p.status}</span></td>
+                  <td className="px-4 py-3 font-medium">Rs. {Number(p.total_amount).toLocaleString()}</td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-900">New Purchase Order</h3>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-400"><X size={18} /></button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto">
+            <h2 className="text-lg font-bold mb-4">Create Purchase Order</h2>
+            <select className="w-full px-3 py-2 rounded-lg border mb-4" value={supplierId} onChange={e => setSupplierId(e.target.value)}>
+              <option value="">Select Supplier</option>
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+
+            <div className="space-y-3 mb-4">
+              {items.map((item, i) => (
+                <div key={i} className="flex gap-2">
+                  <select className="flex-1 px-3 py-2 rounded-lg border text-sm" value={item.drug_id} onChange={e => {
+                    const drug = drugs.find((d: any) => d.id == e.target.value);
+                    const newItems = [...items];
+                    newItems[i] = { ...item, drug_id: e.target.value, price: drug?.price || 0 };
+                    setItems(newItems);
+                  }}>
+                    <option value="">Select Drug</option>
+                    {drugs.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                  <input type="number" placeholder="Qty" className="w-20 px-3 py-2 rounded-lg border text-sm" value={item.quantity} onChange={e => {
+                    const newItems = [...items]; newItems[i].quantity = Number(e.target.value); setItems(newItems);
+                  }} />
+                  <input type="number" placeholder="Price" className="w-24 px-3 py-2 rounded-lg border text-sm" value={item.price} onChange={e => {
+                    const newItems = [...items]; newItems[i].price = Number(e.target.value); setItems(newItems);
+                  }} />
+                </div>
+              ))}
             </div>
-            <form onSubmit={save} className="space-y-3">
-              <input type="text" required placeholder="Supplier name" value={form.supplier} onChange={e => setForm({...form, supplier: e.target.value})}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-blue-500 transition-all" />
-              <input type="text" required placeholder="Items" value={form.items} onChange={e => setForm({...form, items: e.target.value})}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-blue-500 transition-all" />
-              <input type="number" required placeholder="Total amount" value={form.total} onChange={e => setForm({...form, total: e.target.value})}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-blue-500 transition-all" />
-              <button type="submit" className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">Create PO</button>
-            </form>
+            <button onClick={addItem} className="text-sm text-blue-600 font-medium mb-4">+ Add Item</button>
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border rounded-lg text-sm">Cancel</button>
+              <button onClick={save} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">Create PO</button>
+            </div>
           </div>
         </div>
       )}
