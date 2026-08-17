@@ -245,6 +245,7 @@ def debug_schema():
 
 
 
+
 @router.delete("/drugs/{drug_id}")
 def delete_drug(drug_id: int):
     import traceback
@@ -258,19 +259,21 @@ def delete_drug(drug_id: int):
         if not cur.fetchone():
             return {"error": "Drug not found"}
         
-        # Delete from order_items first (the known FK-linked table)
-        try:
-            cur.execute(f"DELETE FROM order_items WHERE drug_id = {ph}", (drug_id,))
-        except Exception:
-            pass
-        
-        # Try other possible linked tables (ignore if missing)
-        for table in ["prescription_items", "stock_logs", "inventory_transactions"]:
+        # Delete from order_items using SAVEPOINT (so failure doesn't abort whole tx)
+        if db_type == "postgres":
+            cur.execute("SAVEPOINT sp_order_items")
             try:
-                cur.execute(f"DELETE FROM {table} WHERE drug_id = {ph}", (drug_id,))
+                cur.execute(f"DELETE FROM order_items WHERE drug_id = {ph}", (drug_id,))
+                cur.execute("RELEASE SAVEPOINT sp_order_items")
+            except Exception:
+                cur.execute("ROLLBACK TO SAVEPOINT sp_order_items")
+        else:
+            try:
+                cur.execute(f"DELETE FROM order_items WHERE drug_id = {ph}", (drug_id,))
             except Exception:
                 pass
         
+        # Delete the drug
         cur.execute(f"DELETE FROM drugs WHERE id = {ph}", (drug_id,))
         conn.commit()
         return {"message": "Drug deleted"}
