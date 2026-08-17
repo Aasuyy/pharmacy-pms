@@ -342,6 +342,48 @@ export default function AdminDashboard() {
           </div>
         </motion.div>
       </div>
+
+      {/* Expiry Alerts */}
+      <div className="mt-8 bg-white rounded-xl border border-slate-200 p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Drugs Expiring Soon</h2>
+        <ExpiryAlert />
+      </div>
+    </div>
+  );
+}
+
+function ExpiryAlert() {
+  const [expiring, setExpiring] = useState<any[]>([]);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://pharmacy-pms.onrender.com";
+
+  useEffect(() => {
+    fetch(`${API_URL}/shop/expiring?days=30`)
+      .then(r => r.json())
+      .then(data => setExpiring(Array.isArray(data) ? data : []))
+      .catch(() => setExpiring([]));
+  }, []);
+
+  if (expiring.length === 0) {
+    return <p className="text-sm text-slate-400">No drugs expiring within 30 days</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {expiring.map((drug: any) => (
+        <div key={drug.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+          <div>
+            <p className="text-sm font-medium text-slate-900">{drug.name}</p>
+            <p className="text-xs text-slate-500">Stock: {drug.stock_quantity}</p>
+          </div>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            new Date(drug.expiry_date) < new Date()
+              ? "bg-red-100 text-red-700"
+              : "bg-amber-100 text-amber-700"
+          }`}>
+            {new Date(drug.expiry_date).toLocaleDateString()}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
