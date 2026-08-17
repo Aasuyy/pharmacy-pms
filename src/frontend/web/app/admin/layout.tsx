@@ -18,31 +18,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const { admin, logout } = useAdminAuthStore();
 
-  // 1. Login page must render WITHOUT the admin shell and WITHOUT auth check
+  // ALL hooks must be called BEFORE any return statement
+  useEffect(() => {
+    if (!admin && pathname !== "/admin/login") {
+      router.push("/admin/login");
+    }
+  }, [admin, pathname, router]);
+
+  // 1. Login page renders WITHOUT the admin shell
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
-  // 2. All other /admin/* pages require auth — redirect if missing
-  useEffect(() => {
-    if (!admin) {
-      router.push("/admin/login");
-    }
-  }, [admin, router]);
-
-  // 3. Don't render admin shell while redirecting
+  // 2. Don't render admin shell while redirecting
   if (!admin) {
     return <div className="min-h-screen bg-slate-50" />;
   }
 
   const handleLogout = () => {
     logout();
-    window.location.href = "/admin/login"; // hard reload = no blank screen
+    window.location.href = "/admin/login";
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 fixed h-full flex flex-col">
         <div className="p-6 border-b border-slate-100">
           <h1 className="text-lg font-bold text-slate-900">PharmaPro</h1>
@@ -85,7 +84,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 ml-64">
         {children}
       </main>
