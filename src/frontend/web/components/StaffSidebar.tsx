@@ -11,7 +11,7 @@ import { logoutStaff } from "@/lib/rbac";
 const links = [
   { href: "/staff/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/staff/prescriptions", icon: FileText, label: "Prescriptions" },
-  { href: "/staff/dispense", icon: ClipboardCheck, label: "Dispense" },
+  { href: "/staff/dispense", icon: Pill, label: "Dispense" },
   { href: "/staff/billing", icon: DollarSign, label: "Billing" },
   { href: "/staff/pos", icon: ShoppingCart, label: "Quick POS" },
   { href: "/staff/inventory", icon: Package, label: "Inventory" },
