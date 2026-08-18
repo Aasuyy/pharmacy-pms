@@ -6,14 +6,16 @@ from alembic import context
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, BASE_DIR)
+sys.path.insert(0, os.path.join(BASE_DIR, "src"))
 
 from src.backend.db.session import Base
 from src.backend.api.deps import DB_PATH
 
-# Import database module/models where models are registered
+# IMPORT ALL MODEL FILES HERE SO THEY REGISTER WITH Base.metadata
+# Adjust these imports depending on your exact file paths (e.g. from backend.models import ...)
 try:
-    import src.backend.db.models
-except ModuleNotFoundError:
+    import backend.models  # or from backend.db import models
+except ImportError:
     pass
 
 config = context.config
