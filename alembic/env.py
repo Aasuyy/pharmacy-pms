@@ -7,6 +7,8 @@ from alembic import context
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.backend.db.session import Base
+# Import model modules here so Alembic registers them in Base.metadata:
+# e.g., import src.backend.models 
 from src.backend.api.deps import DB_PATH
 
 config = context.config
