@@ -10,7 +10,12 @@ sys.path.insert(0, BASE_DIR)
 sys.path.insert(0, os.path.join(BASE_DIR, "src"))
 
 from src.backend.db.session import Base
-import src.backend.core.models  # type: ignore # noqa: F401
+
+# Import ORM models to populate Base.metadata
+try:
+    import src.backend.core.models  # type: ignore # noqa: F401
+except ImportError:
+    pass
 
 config = context.config
 
@@ -49,7 +54,6 @@ def run_migrations_online() -> None:
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-    # Cast the section dictionary explicitly to prevent dict[str, str] | None type errors
     section = config.get_section(config.config_ini_section)
     configuration: dict[str, str] = dict(section) if section is not None else {}
     configuration["sqlalchemy.url"] = db_url
