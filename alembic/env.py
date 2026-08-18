@@ -4,19 +4,17 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# Ensure both project root and src are in Python path
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, BASE_DIR)
-sys.path.insert(0, os.path.join(BASE_DIR, "src"))
 
-from backend.db.session import Base
-from backend.api.deps import DB_PATH
+from src.backend.db.session import Base
+from src.backend.api.deps import DB_PATH
 
-# Dynamically import all models so Alembic metadata registers them
+# Import database module/models where models are registered
 try:
-    import backend.models
+    import src.backend.db.models
 except ModuleNotFoundError:
-    import src.backend.models
+    pass
 
 config = context.config
 
